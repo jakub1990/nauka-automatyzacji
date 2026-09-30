@@ -1,0 +1,109 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast?latitude=52.23&longitude=21.01&hourly=temperature_2m&forecast_days=1&timezone=Europe/Warsaw",
+        "options": {}
+      },
+      "id": "eee530c8-2c7a-4b34-ab9d-0cd29880baa4",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Szukamy najwyższej i najniższej temperatury dnia oraz ich godzin\nconst dane = $input.first().json;\nconst godziny = dane.hourly.time;\nconst temperatury = dane.hourly.temperature_2m;\n\nlet najwyzsza = temperatury[0];\nlet najnizsza = temperatury[0];\nlet godzinaNajwyzszej = godziny[0];\nlet godzinaNajnizszej = godziny[0];\n\nfor (let i = 0; i < temperatury.length; i++) {\n  if (temperatury[i] > najwyzsza) {\n    najwyzsza = temperatury[i];\n    godzinaNajwyzszej = godziny[i];\n  }\n\n  if (temperatury[i] < najnizsza) {\n    najnizsza = temperatury[i];\n    godzinaNajnizszej = godziny[i];\n  }\n}\n\nreturn [{ json: { najwyzsza, godzinaNajwyzszej, najnizsza, godzinaNajnizszej } }];"
+      },
+      "id": "a183bc84-660c-4ccc-86d5-7e6d49fa75d2",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4a14a5e6-580b-48b8-899c-2df20f559899",
+              "name": "wiadomosc",
+              "value": "=Dziś temperatura będzie od {{ $json.najnizsza.toString().replace('.', ',') }}°C o godzinie {{ $json.godzinaNajnizszej.split('T')[1] }} do {{ $json.najwyzsza.toString().replace('.', ',') }}°C o godzinie {{ $json.godzinaNajwyzszej.split('T')[1] }}.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "83a78389-5232-4992-9123-a0a2ff1d7332",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "path": "pogoda",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        64,
+        192
+      ],
+      "id": "8725a292-a611-432b-8be1-68f1e0eb3dc5",
+      "name": "Webhook",
+      "webhookId": "b9cb441c-3e93-4434-95bc-8b3c43de39b0"
+    }
+  ],
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "4801724c47bf66c2c32f88b341edd15201d03b3146bfa3164c9749ead35d2693"
+  }
+}
