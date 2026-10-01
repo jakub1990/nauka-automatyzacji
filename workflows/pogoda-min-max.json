@@ -1,75 +1,20 @@
 {
   "nodes": [
     {
-      "parameters": {
-        "url": "https://api.open-meteo.com/v1/forecast?latitude=52.23&longitude=21.01&hourly=temperature_2m&forecast_days=1&timezone=Europe/Warsaw",
-        "options": {}
-      },
-      "id": "eee530c8-2c7a-4b34-ab9d-0cd29880baa4",
-      "name": "HTTP Request",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
       "position": [
-        240,
-        -32
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Szukamy najwyższej i najniższej temperatury dnia oraz ich godzin\nconst dane = $input.first().json;\nconst godziny = dane.hourly.time;\nconst temperatury = dane.hourly.temperature_2m;\n\nlet najwyzsza = temperatury[0];\nlet najnizsza = temperatury[0];\nlet godzinaNajwyzszej = godziny[0];\nlet godzinaNajnizszej = godziny[0];\n\nfor (let i = 0; i < temperatury.length; i++) {\n  if (temperatury[i] > najwyzsza) {\n    najwyzsza = temperatury[i];\n    godzinaNajwyzszej = godziny[i];\n  }\n\n  if (temperatury[i] < najnizsza) {\n    najnizsza = temperatury[i];\n    godzinaNajnizszej = godziny[i];\n  }\n}\n\nreturn [{ json: { najwyzsza, godzinaNajwyzszej, najnizsza, godzinaNajnizszej } }];"
-      },
-      "id": "a183bc84-660c-4ccc-86d5-7e6d49fa75d2",
-      "name": "Code in JavaScript",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        464,
-        -32
-      ]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "4a14a5e6-580b-48b8-899c-2df20f559899",
-              "name": "wiadomosc",
-              "value": "=Dziś temperatura będzie od {{ $json.najnizsza.toString().replace('.', ',') }}°C o godzinie {{ $json.godzinaNajnizszej.split('T')[1] }} do {{ $json.najwyzsza.toString().replace('.', ',') }}°C o godzinie {{ $json.godzinaNajwyzszej.split('T')[1] }}.",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "83a78389-5232-4992-9123-a0a2ff1d7332",
-      "name": "Edit Fields",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        688,
-        -32
-      ]
-    },
-    {
-      "parameters": {
-        "path": "pogoda",
-        "responseMode": "lastNode",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        64,
-        192
+        -144,
+        -160
       ],
-      "id": "8725a292-a611-432b-8be1-68f1e0eb3dc5",
-      "name": "Webhook",
-      "webhookId": "b9cb441c-3e93-4434-95bc-8b3c43de39b0"
+      "id": "65962980-15b0-4760-838b-1a1137ca2d52",
+      "name": "When clicking ‘Execute workflow’"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "ADRES_DISCORD",
+        "url": "WKLEJ_TUTAJ_ADRES_WEBHOOKA",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -84,52 +29,217 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        912,
-        -32
+        1104,
+        -64
       ],
-      "id": "83db1269-2b0a-4245-b5c6-8636baa54d4d",
-      "name": "HTTP Request1"
+      "id": "6783c327-3a9a-4bb0-bb0d-20ad1d5475db",
+      "name": "Wyślij na Discord"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Szukamy najwyższej i najniższej temperatury dnia oraz ich godzin\nconst dane = $input.first().json;\nconst godziny = dane.hourly.time;\nconst temperatury = dane.hourly.temperature_2m;\n\nlet najwyzsza = temperatury[0];\nlet najnizsza = temperatury[0];\nlet godzinaNajwyzszej = godziny[0];\nlet godzinaNajnizszej = godziny[0];\n\nfor (let i = 0; i < temperatury.length; i++) {\n  if (temperatury[i] > najwyzsza) {\n    najwyzsza = temperatury[i];\n    godzinaNajwyzszej = godziny[i];\n  }\n\n  if (temperatury[i] < najnizsza) {\n    najnizsza = temperatury[i];\n    godzinaNajnizszej = godziny[i];\n  }\n}\n\nreturn [{ json: { najwyzsza, godzinaNajwyzszej, najnizsza, godzinaNajnizszej } }];"
+      },
+      "id": "98622820-ed60-4a6f-be55-0317ce0ba972",
+      "name": "Licz min i max",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast?latitude=52.23&longitude=21.01&hourly=temperature_2m&forecast_days=1&timezone=Europe/Warsaw",
+        "options": {}
+      },
+      "id": "36c99a09-3177-4c37-9739-84cb048a4fb2",
+      "name": "Pogoda API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -128,
+        128
+      ],
+      "id": "854c34a4-c25f-430b-9c07-eb2d90287cd0",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "90c592b0-424f-4970-bddd-c51d96e1176b",
+              "leftValue": "={{ $json.najwyzsza }}",
+              "rightValue": 18,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        -16
+      ],
+      "id": "73772833-8e31-4e46-8ceb-1eb448fb6629",
+      "name": "if"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4a14a5e6-580b-48b8-899c-2df20f559899",
+              "name": "wiadomosc",
+              "value": "=☀️ Ciepły dzień! Dziś od {{ $json.najnizsza.toString().replace('.', ',') }}°C o {{ $json.godzinaNajnizszej.split('T')[1] }} do {{ $json.najwyzsza.toString().replace('.', ',') }}°C o {{ $json.godzinaNajwyzszej.split('T')[1] }}.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "537f893d-ba10-4c63-88ac-c2b6f97622e2",
+      "name": "Wiadomość: ciepło",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4a14a5e6-580b-48b8-899c-2df20f559899",
+              "name": "wiadomosc",
+              "value": "=🧥 Weź kurtkę! Dziś od {{ $json.najnizsza.toString().replace('.', ',') }}°C o {{ $json.godzinaNajnizszej.split('T')[1] }} do {{ $json.najwyzsza.toString().replace('.', ',') }}°C o {{ $json.godzinaNajwyzszej.split('T')[1] }}.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7ee5f31b-0a61-47bc-b578-bf3bb5241739",
+      "name": "Wiadomość: zimno",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        864,
+        128
+      ]
     }
   ],
   "connections": {
-    "HTTP Request": {
+    "When clicking ‘Execute workflow’": {
       "main": [
         [
           {
-            "node": "Code in JavaScript",
+            "node": "Pogoda API",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript": {
+    "Licz min i max": {
       "main": [
         [
           {
-            "node": "Edit Fields",
+            "node": "if",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Edit Fields": {
+    "Pogoda API": {
       "main": [
         [
           {
-            "node": "HTTP Request1",
+            "node": "Licz min i max",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Webhook": {
+    "Schedule Trigger": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Pogoda API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if": {
+      "main": [
+        [
+          {
+            "node": "Wiadomość: ciepło",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wiadomość: zimno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wiadomość: ciepło": {
+      "main": [
+        [
+          {
+            "node": "Wyślij na Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wiadomość: zimno": {
+      "main": [
+        [
+          {
+            "node": "Wyślij na Discord",
             "type": "main",
             "index": 0
           }
@@ -139,6 +249,6 @@
   },
   "pinData": {},
   "meta": {
-    "instanceId": "4801724c47bf66c2c32f88b341edd15201d03b3146bfa3164c9749ead35d2693"
+    "instanceId": "434f97a4d58b932e756c947bd51d2939c9755725df045c45a75f73a3885472c0"
   }
 }
