@@ -109,7 +109,78 @@
         0
       ],
       "id": "933ff2a4-008c-4870-a768-decdda0f7396",
-      "name": "Ostatnie 24 h"
+      "name": "Ostatnie 24 h",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const artykuly = $input.all()\n  .map(item => item.json)\n  .filter(a => a.title);\n\nconst data = $now.toFormat('dd.MM.yyyy');\n\n// Pusty poranek: wysyłamy krótką informację zamiast ciszy\nif (artykuly.length === 0) {\n  return [{ json: { wiadomosc: `📰 ${data}: dziś brak nowych artykułów.` } }];\n}\n\nconst linie = artykuly.map((a, n) =>\n  `${n + 1}. ${a.title}\\n<${a.link}>`\n);\n\nlet wiadomosc = `📰 Poranny przegląd, ${data}\\n\\n` + linie.join('\\n\\n');\n\n// Discord przyjmuje maksymalnie 2000 znaków\nif (wiadomosc.length > 1900) {\n  wiadomosc = wiadomosc.slice(0, 1900) + '\\n…';\n}\n\nreturn [{ json: { wiadomosc } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        -96
+      ],
+      "id": "53f1963d-1e83-4ad4-b11d-c55258e7145e",
+      "name": "Złóż wiadomość"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d39876bd-d3e3-45d7-a422-e45e6ce761fb",
+              "leftValue": "={{ $json.link }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        688,
+        0
+      ],
+      "id": "21d57df7-7cd7-4dcf-a8ce-8cdfda4ca70c",
+      "name": "Są artykuły?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8aa58da5-aae5-4d47-9279-b6342580605e",
+              "name": "wiadomosc",
+              "value": "={{ $now.toFormat('dd.MM.yyyy') }}: dziś brak nowych artykułów.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1584,
+        96
+      ],
+      "id": "0ec77182-afd8-412e-a01d-e71d2b1b9e32",
+      "name": "Brak nowości"
     },
     {
       "parameters": {
@@ -120,11 +191,12 @@
       "type": "n8n-nodes-base.removeDuplicates",
       "typeVersion": 2,
       "position": [
-        688,
-        0
+        912,
+        -96
       ],
       "id": "8c2fadb0-53cc-4663-b661-aadb0fbb98d7",
-      "name": "Remove Duplicates"
+      "name": "Usuń duplikaty",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -141,11 +213,12 @@
       "type": "n8n-nodes-base.sort",
       "typeVersion": 1,
       "position": [
-        912,
-        0
+        1136,
+        -96
       ],
       "id": "7d091a81-e4ec-4e82-bfbe-fe55109e971b",
-      "name": "Sort"
+      "name": "Sortowanie po dacie",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -154,30 +227,17 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        1136,
-        0
+        1360,
+        -96
       ],
       "id": "4c739795-c39a-4ee6-b7eb-5adff3c197b1",
-      "name": "Limit",
+      "name": "Limit artykułów",
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const artykuly = $input.all()\n  .map(item => item.json)\n  .filter(a => a.title);\n\nconst data = $now.toFormat('dd.MM.yyyy');\n\n// Pusty poranek: wysyłamy krótką informację zamiast ciszy\nif (artykuly.length === 0) {\n  return [{ json: { wiadomosc: `📰 ${data}: dziś brak nowych artykułów.` } }];\n}\n\nconst linie = artykuly.map((a, n) =>\n  `${n + 1}. ${a.title}\\n<${a.link}>`\n);\n\nlet wiadomosc = `📰 Poranny przegląd, ${data}\\n\\n` + linie.join('\\n\\n');\n\n// Discord przyjmuje maksymalnie 2000 znaków\nif (wiadomosc.length > 1900) {\n  wiadomosc = wiadomosc.slice(0, 1900) + '\\n…';\n}\n\nreturn [{ json: { wiadomosc } }];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1360,
-        0
-      ],
-      "id": "53f1963d-1e83-4ad4-b11d-c55258e7145e",
-      "name": "Złóż wiadomość"
-    },
-    {
-      "parameters": {
         "method": "POST",
-        "url": "WKLEJ_TUTAJ_ADRES_WEBHOOKA",
+        "url": "TU_WKLEJ_SERVER_DISCORD",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -192,11 +252,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1632,
+        1808,
         0
       ],
       "id": "a942d07e-0822-4a83-a5d3-3cdc2645fe37",
-      "name": "HTTP Request"
+      "name": "Wyślij na discord"
     }
   ],
   "connections": {
@@ -269,40 +329,7 @@
       "main": [
         [
           {
-            "node": "Remove Duplicates",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Remove Duplicates": {
-      "main": [
-        [
-          {
-            "node": "Sort",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Sort": {
-      "main": [
-        [
-          {
-            "node": "Limit",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Limit": {
-      "main": [
-        [
-          {
-            "node": "Złóż wiadomość",
+            "node": "Są artykuły?",
             "type": "main",
             "index": 0
           }
@@ -313,7 +340,69 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Wyślij na discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Są artykuły?": {
+      "main": [
+        [
+          {
+            "node": "Usuń duplikaty",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Brak nowości",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brak nowości": {
+      "main": [
+        [
+          {
+            "node": "Wyślij na discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Usuń duplikaty": {
+      "main": [
+        [
+          {
+            "node": "Sortowanie po dacie",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sortowanie po dacie": {
+      "main": [
+        [
+          {
+            "node": "Limit artykułów",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit artykułów": {
+      "main": [
+        [
+          {
+            "node": "Złóż wiadomość",
             "type": "main",
             "index": 0
           }
