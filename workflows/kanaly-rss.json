@@ -1,0 +1,974 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -144
+      ],
+      "id": "e51d2682-6d81-42b2-9445-ca027e23a479",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7,
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -208,
+        144
+      ],
+      "id": "0a8a4758-84f2-4126-9937-85a049ad00e5",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://www.bankier.pl/rss/wiadomosci.xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -96
+      ],
+      "id": "06d4c295-8bbd-489e-bed7-1d2cee4ccc57",
+      "name": "RSS: Bankier",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://hnrss.org/frontpage",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        96
+      ],
+      "id": "503d1892-4f20-4cac-8563-a8c8614fad87",
+      "name": "RSS: Hacker News",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "a75ac3e8-93e6-4d89-8479-09acfd5e9d4e",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "85ca02ce-8dcc-4aac-bdc4-277e26c12099",
+              "leftValue": "={{ $json.isoDate }}",
+              "rightValue": "={{ $now.minus({ hours: 24 }) }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        464,
+        0
+      ],
+      "id": "933ff2a4-008c-4870-a768-decdda0f7396",
+      "name": "Ostatnie 24 h"
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "link",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        688,
+        0
+      ],
+      "id": "8c2fadb0-53cc-4663-b661-aadb0fbb98d7",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "isoDate",
+              "order": "descending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        912,
+        0
+      ],
+      "id": "7d091a81-e4ec-4e82-bfbe-fe55109e971b",
+      "name": "Sort"
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        0
+      ],
+      "id": "4c739795-c39a-4ee6-b7eb-5adff3c197b1",
+      "name": "Limit",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const artykuly = $input.all()\n  .map(item => item.json)\n  .filter(a => a.title);\n\nconst data = $now.toFormat('dd.MM.yyyy');\n\n// Pusty poranek: wysyłamy krótką informację zamiast ciszy\nif (artykuly.length === 0) {\n  return [{ json: { wiadomosc: `📰 ${data}: dziś brak nowych artykułów.` } }];\n}\n\nconst linie = artykuly.map((a, n) =>\n  `${n + 1}. ${a.title}\\n<${a.link}>`\n);\n\nlet wiadomosc = `📰 Poranny przegląd, ${data}\\n\\n` + linie.join('\\n\\n');\n\n// Discord przyjmuje maksymalnie 2000 znaków\nif (wiadomosc.length > 1900) {\n  wiadomosc = wiadomosc.slice(0, 1900) + '\\n…';\n}\n\nreturn [{ json: { wiadomosc } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        0
+      ],
+      "id": "53f1963d-1e83-4ad4-b11d-c55258e7145e",
+      "name": "Złóż wiadomość"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "WKLEJ_TUTAJ_ADRES_WEBHOOKA",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.wiadomosc }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1632,
+        0
+      ],
+      "id": "a942d07e-0822-4a83-a5d3-3cdc2645fe37",
+      "name": "HTTP Request"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "RSS: Bankier",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS: Hacker News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS: Bankier",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS: Hacker News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS: Bankier": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS: Hacker News": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Ostatnie 24 h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ostatnie 24 h": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Sort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Złóż wiadomość",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Złóż wiadomość": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "RSS: Bankier": [
+      {
+        "title": "Koncerny paliwowe zapłacą większy podatek. Jest podpis prezydenta",
+        "link": "https://www.bankier.pl/wiadomosc/Koncerny-paliwowe-zaplaca-wiekszy-podatek-Jest-podpis-prezydenta-9206295.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 20:09:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/0/c/4525de47db41b8-948-568-10-60-3990-2393.jpg\" alt=\"\" align=\"left\" />Podpisałem ustawę dot. nadmiarowych zysków koncernów paliwowych - poinformował prezydent Karol Nawrocki. Jak dodał, skieruje ją do TK do kontroli w trybie następczym. </p>",
+        "contentSnippet": "Podpisałem ustawę dot. nadmiarowych zysków koncernów paliwowych - poinformował prezydent Karol Nawrocki. Jak dodał, skieruje ją do TK do kontroli w trybie następczym.",
+        "isoDate": "2026-10-01T19:09:00.000Z"
+      },
+      {
+        "title": "Najgorszy dzień na giełdzie od ponad miesiąca. Akcje banków wyprzedawane ",
+        "link": "https://www.bankier.pl/wiadomosc/Najgorsza-sesja-WIG20-od-ponad-miesiaca-Akcje-bankow-wyprzedawane-9206211.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 17:29:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/c/4/644e1f5ad34a7f-948-568-0-38-3536-2121.jpg\" alt=\"\" align=\"left\" />Wyraźne pogorszenie nastrojów i głęboką przecenę głównych indeksów doświadczyła w czwartek warszawska giełda. Po miesiącach imponujących wzrostów, które wyprowadziły WIG20 i WIG na nowe szczyty, pierwsza sesja października przyniosła największe spadki od 27 sierpnia. Symboliczne, o tyle, że to właśnie 4 lata temu w październiku wystartowała bieżąca hossa. Impuls do przeceny dała kolejna fala wyprzedaży na globalnym rynku obligacji oraz gwałtowne osłabienie złotego. Największym ciężarem dla warszawskiego parkietu okazał się dotychczasowy motor hossy – sektor bankowy, czyli drzwi obrotowe na nasz rynek dla zagranicznego kapitału.</p>",
+        "contentSnippet": "Wyraźne pogorszenie nastrojów i głęboką przecenę głównych indeksów doświadczyła w czwartek warszawska giełda. Po miesiącach imponujących wzrostów, które wyprowadziły WIG20 i WIG na nowe szczyty, pierwsza sesja października przyniosła największe spadki od 27 sierpnia. Symboliczne, o tyle, że to właśnie 4 lata temu w październiku wystartowała bieżąca hossa. Impuls do przeceny dała kolejna fala wyprzedaży na globalnym rynku obligacji oraz gwałtowne osłabienie złotego. Największym ciężarem dla warszawskiego parkietu okazał się dotychczasowy motor hossy – sektor bankowy, czyli drzwi obrotowe na nasz rynek dla zagranicznego kapitału.",
+        "isoDate": "2026-10-01T16:29:00.000Z"
+      },
+      {
+        "title": "Chińska inwazja na zieloną energię. Gigantyczne turbiny zaatakują Europę?",
+        "link": "https://www.bankier.pl/wiadomosc/Chinska-inwazja-na-zielona-energie-Gigantyczne-turbiny-zaatakuja-Europe-9205919.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:00:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/9/2/9ba41347cd9b1a-948-568-0-12-1732-1039.jpg\" alt=\"\" align=\"left\" />Chińscy giganci sektora energii odnawialnej nasilają ofensywę na europejskim rynku wiatrowym, stawiając na agresywną politykę produktową.</p>",
+        "contentSnippet": "Chińscy giganci sektora energii odnawialnej nasilają ofensywę na europejskim rynku wiatrowym, stawiając na agresywną politykę produktową.",
+        "isoDate": "2026-10-01T18:00:00.000Z"
+      },
+      {
+        "title": "Sierra Gorda zwiększy moce i produkcję miedzi. Spłaci zadłużenie za ok. 4 lata",
+        "link": "https://www.bankier.pl/wiadomosc/Sierra-Gorda-zwiekszy-moce-i-produkcje-miedzi-Splaci-zadluzenie-za-ok-4-lata-9206267.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:04:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/e/a/8ca33cae58d622-948-568-38-101-3070-1842.jpg\" alt=\"\" align=\"left\" />Należąca do KGHM i australijskiej spółki South32 kopalnia odkrywkowa Sierra Gorda w Chile przy obecnych cenach spłaci swoje zadłużenie za około cztery lata – powiedział w czwartek wiceprezes KGHM Polska Miedź Piotr Krzyżewski. Obecnie zadłużenie przypadające na KGHM wynosi 2,7 mld dolarów.</p>",
+        "contentSnippet": "Należąca do KGHM i australijskiej spółki South32 kopalnia odkrywkowa Sierra Gorda w Chile przy obecnych cenach spłaci swoje zadłużenie za około cztery lata – powiedział w czwartek wiceprezes KGHM Polska Miedź Piotr Krzyżewski. Obecnie zadłużenie przypadające na KGHM wynosi 2,7 mld dolarów.",
+        "isoDate": "2026-10-01T18:04:00.000Z"
+      },
+      {
+        "title": "Atak na Królewiec? Putin: Rozważymy użycie całego arsenału",
+        "link": "https://www.bankier.pl/wiadomosc/Atak-na-Krolewiec-Putin-Rozwazymy-uzycie-calego-arsenalu-9206251.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 18:46:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/c/8/a66f8594518eb2-948-568-65-142-1477-886.jpg\" alt=\"\" align=\"left\" />Rosja rozważy użycie całego arsenału broni, którym dysponuje, jeśli obwód królewiecki znajdzie się w sytuacji zagrożenia – oświadczył w czwartek rosyjski przywódca Władimir Putin.</p>",
+        "contentSnippet": "Rosja rozważy użycie całego arsenału broni, którym dysponuje, jeśli obwód królewiecki znajdzie się w sytuacji zagrożenia – oświadczył w czwartek rosyjski przywódca Władimir Putin.",
+        "isoDate": "2026-10-01T17:46:00.000Z"
+      },
+      {
+        "title": "Ropa drożeje mimo powrotu dostaw. Rynek obawia się kolejnego kryzysu",
+        "link": "https://www.bankier.pl/wiadomosc/Ropa-drozeje-mimo-powrotu-dostaw-Rynek-obawia-sie-kolejnego-kryzysu-9206247.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 18:28:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/1/3/2d6ec95742717a-948-568-19-139-1900-1140.jpg\" alt=\"\" align=\"left\" />Ceny amerykańskiej ropy West Texas Intermediate (WTI) przekroczyły w niedzielę poziom 100 dolarów za baryłkę po raz pierwszy od marca 2022 roku. Ten sam poziom przebiła cena ropy Brent, stanowiącej globalny punkt odniesienia.</p>",
+        "contentSnippet": "Ceny amerykańskiej ropy West Texas Intermediate (WTI) przekroczyły w niedzielę poziom 100 dolarów za baryłkę po raz pierwszy od marca 2022 roku. Ten sam poziom przebiła cena ropy Brent, stanowiącej globalny punkt odniesienia.",
+        "isoDate": "2026-10-01T17:28:00.000Z"
+      },
+      {
+        "title": "Goldman Sachs liderem obrotów na rynku akcji GPW we wrześniu. Drugi BM PKO BP",
+        "link": "https://www.bankier.pl/wiadomosc/Goldman-Sachs-liderem-obrotow-na-rynku-akcji-GPW-we-wrzesniu-drugi-BM-PKO-BP-9206286.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:40:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/a/5/c1c0b4fee3d5e6-945-560-641-393-3307-1984.jpg\" alt=\"\" align=\"left\" />Goldman Sachs we wrześniu 2026 roku był liderem obrotów na rynku akcji w transakcjach sesyjnych GPW. Na drugim miejscu znalazło się Biuro Maklerskie PKO BP - podała GPW na stronie internetowej.</p>",
+        "contentSnippet": "Goldman Sachs we wrześniu 2026 roku był liderem obrotów na rynku akcji w transakcjach sesyjnych GPW. Na drugim miejscu znalazło się Biuro Maklerskie PKO BP - podała GPW na stronie internetowej.",
+        "isoDate": "2026-10-01T18:40:00.000Z"
+      },
+      {
+        "title": "Elon Musk doradcą Pentagonu. Ma pomóc zaplanować wojny przyszłości",
+        "link": "https://www.bankier.pl/wiadomosc/Elon-Musk-doradca-Pentagonu-Ma-pomoc-zaplanowac-wojny-przyszlosci-9206238.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 18:07:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/5/7/59210725a73ad4-948-568-0-150-3990-2393.jpg\" alt=\"\" align=\"left\" />Elon Musk, szef firmy produkującej broń autonomiczną Palmer Luckey i były republikański przewodniczący Izby Reprezentantów Newt Gingrich będą doradzać Pentagonowi w sprawie wojen przyszłości - poinformował minister wojny Pete Hegseth, którego cytuje w czwartek „Washington Post”.</p>",
+        "contentSnippet": "Elon Musk, szef firmy produkującej broń autonomiczną Palmer Luckey i były republikański przewodniczący Izby Reprezentantów Newt Gingrich będą doradzać Pentagonowi w sprawie wojen przyszłości - poinformował minister wojny Pete Hegseth, którego cytuje w czwartek „Washington Post”.",
+        "isoDate": "2026-10-01T17:07:00.000Z"
+      },
+      {
+        "title": "Argentyna korzysta z umowy z UE. Eksport produktów rolnych wzrósł o 21 proc.",
+        "link": "https://www.bankier.pl/wiadomosc/Argentyna-korzysta-z-umowy-z-UE-Eksport-produktow-rolnych-wzrosl-o-21-proc-9206270.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:07:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/e/b/eda2e3644dc0df-948-568-180-0-3750-2249.jpg\" alt=\"\" align=\"left\" />Eksport towarów rolnych z Argentyny do państw Unii Europejskiej wzrósł o 21 proc. w ciągu czterech miesięcy od wejścia w życie umowy handlowej pomiędzy UE a południowoamerykańskim blokiem Mercosur – ogłosiło w czwartek argentyńskie ministerstwo gospodarki.</p>",
+        "contentSnippet": "Eksport towarów rolnych z Argentyny do państw Unii Europejskiej wzrósł o 21 proc. w ciągu czterech miesięcy od wejścia w życie umowy handlowej pomiędzy UE a południowoamerykańskim blokiem Mercosur – ogłosiło w czwartek argentyńskie ministerstwo gospodarki.",
+        "isoDate": "2026-10-01T18:07:00.000Z"
+      },
+      {
+        "title": "Ostre starcie na G20. Domański zripostował rosyjskiemu ministrowi",
+        "link": "https://www.bankier.pl/wiadomosc/Ostre-starcie-na-G20-Domanski-zripostowal-rosyjskiemu-ministrowi-9206278.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:21:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/3/1/bd9676bebeed14-948-568-17-26-3482-2089.jpg\" alt=\"\" align=\"left\" />Podczas czwartkowego posiedzenia przedstawicieli krajów G20 w USA doszło do spięcia. Minister finansów i gospodarki RP Andrzej Domański ostro odpowiedział swojemu rosyjskiemu odpowiednikowi na sali — przekazała polska delegacja.</p>",
+        "contentSnippet": "Podczas czwartkowego posiedzenia przedstawicieli krajów G20 w USA doszło do spięcia. Minister finansów i gospodarki RP Andrzej Domański ostro odpowiedział swojemu rosyjskiemu odpowiednikowi na sali — przekazała polska delegacja.",
+        "isoDate": "2026-10-01T18:21:00.000Z"
+      },
+      {
+        "title": "6,50% w Credit Agricole. Bank podbija oprocentowanie i daje teraz najwięcej",
+        "link": "https://www.bankier.pl/wiadomosc/Credit-Agricole-podnosi-stawke-do-6-50-To-obecnie-najwyzsze-oprocentowanie-na-rynku-9206108.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 16:20:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/e/2/9123367b9b4076-948-568-1219-1179-2368-1421.jpg\" alt=\"\" align=\"left\" />Credit Agricole nie tylko przedłużył, ale zdecydowanie poprawił dotychczasową promocję Rachunku Oszczędzam Plus. Nowa promocja skierowana do osób, które nie korzystają z oferty banku, pozwoli otrzymać oprocentowanie w wysokości 6,50 proc. w skali roku. Pozostałe parametry, na które zwracają uwagę klienci, zostały natomiast zachowane.</p>",
+        "contentSnippet": "Credit Agricole nie tylko przedłużył, ale zdecydowanie poprawił dotychczasową promocję Rachunku Oszczędzam Plus. Nowa promocja skierowana do osób, które nie korzystają z oferty banku, pozwoli otrzymać oprocentowanie w wysokości 6,50 proc. w skali roku. Pozostałe parametry, na które zwracają uwagę klienci, zostały natomiast zachowane.",
+        "isoDate": "2026-10-01T15:20:00.000Z"
+      },
+      {
+        "title": "Rząd dopłaci do mieszkań, a deweloperzy otwierają szampana. Jest też reakcja giełdy",
+        "link": "https://www.bankier.pl/wiadomosc/Rzad-doplaci-do-mieszkan-a-deweloperzy-otwieraja-szampana-Jest-tez-reakcja-gieldy-9205937.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 14:28:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/9/1/bfe60573e1d364-948-567-0-35-1000-599.jpg\" alt=\"\" align=\"left\" />Ceny mieszkań i domów w Wielkiej Brytanii już dawno nie można określać jako \"w zasięgu\". Stąd rząd postanowił wprowadzić program wsparcia dla kupujących pierwszą nieruchomość, wywołując tym samym dodatkowy efekt. Akcje deweloperów gwałtownie poszły w górę, a firmy już zacierają ręce. </p>",
+        "contentSnippet": "Ceny mieszkań i domów w Wielkiej Brytanii już dawno nie można określać jako \"w zasięgu\". Stąd rząd postanowił wprowadzić program wsparcia dla kupujących pierwszą nieruchomość, wywołując tym samym dodatkowy efekt. Akcje deweloperów gwałtownie poszły w górę, a firmy już zacierają ręce.",
+        "isoDate": "2026-10-01T13:28:00.000Z"
+      },
+      {
+        "title": "Merz ostrzega: Jeśli zachwieją się Niemcy, zachwieje się Europa i Ukraina",
+        "link": "https://www.bankier.pl/wiadomosc/Merz-ostrzega-Jesli-zachwieja-sie-Niemcy-zachwieje-sie-Europa-i-Ukraina-9206284.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:30:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/5/a/aa5fd9e09281ab-948-568-0-176-3721-2232.jpg\" alt=\"\" align=\"left\" />Jeśli zachwieją się Niemcy, zachwieje się także Europa, a wraz z nią Ukraina – ostrzegł w czwartek kanclerz Niemiec Friedrich Merz podczas ceremonii przyznania Sojuszowi Północnoatlantyckiemu Westfalskiej Nagrody Pokojowej.</p>",
+        "contentSnippet": "Jeśli zachwieją się Niemcy, zachwieje się także Europa, a wraz z nią Ukraina – ostrzegł w czwartek kanclerz Niemiec Friedrich Merz podczas ceremonii przyznania Sojuszowi Północnoatlantyckiemu Westfalskiej Nagrody Pokojowej.",
+        "isoDate": "2026-10-01T18:30:00.000Z"
+      },
+      {
+        "title": "Koniec cenowego szaleństwa nad Wisłą? Tak polskie mieszkania wypadają na tle Europy",
+        "link": "https://www.bankier.pl/wiadomosc/Nowe-dane-o-cenach-mieszkan-Polska-mocno-wyroznia-sie-na-tle-reszty-Europy-9205995.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 14:45:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/c/a/6ecbbe9ae27c20-948-568-0-54-1989-1193.jpg\" alt=\"\" align=\"left\" />Polska pozostaje w środku stawki pod względem wzrostów cen mieszkań w Unii Europejskiej – wynika z najnowszych danych Eurostatu za II kw. 2026 r. Choć stawki nad Wisłą wciąż zwyżkują, to pocieszeniem dla szukających własnego „M” jest fakt, że Polska wyróżnia się na unijnym tle wyraźnie hamującym wzrostem cen.</p>",
+        "contentSnippet": "Polska pozostaje w środku stawki pod względem wzrostów cen mieszkań w Unii Europejskiej – wynika z najnowszych danych Eurostatu za II kw. 2026 r. Choć stawki nad Wisłą wciąż zwyżkują, to pocieszeniem dla szukających własnego „M” jest fakt, że Polska wyróżnia się na unijnym tle wyraźnie hamującym wzrostem cen.",
+        "isoDate": "2026-10-01T13:45:00.000Z"
+      },
+      {
+        "title": "Francja z planem oszczędności. 54 mld euro cięć i zamrożone emerytury",
+        "link": "https://www.bankier.pl/wiadomosc/Francja-z-planem-oszczednosci-54-mld-euro-ciec-i-zamrozone-emerytury-9206172.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 16:59:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/d/0/7bcf8b10b32ccf-948-568-0-168-1856-1113.jpg\" alt=\"\" align=\"left\" />Rząd Francji przedstawił w czwartek projekt budżetu na 2027 rok przewidujący oszczędności na kwotę 54 mld euro, których źródłem będą m.in. zamrożenie i cięcia wydatków w sektorze publicznym. Celem tych działań jest zmniejszenie deficytu budżetowego w 2027 roku do 5 proc. PKB.</p>",
+        "contentSnippet": "Rząd Francji przedstawił w czwartek projekt budżetu na 2027 rok przewidujący oszczędności na kwotę 54 mld euro, których źródłem będą m.in. zamrożenie i cięcia wydatków w sektorze publicznym. Celem tych działań jest zmniejszenie deficytu budżetowego w 2027 roku do 5 proc. PKB.",
+        "isoDate": "2026-10-01T15:59:00.000Z"
+      },
+      {
+        "title": "Baza wojsk USA w Polsce. Trump: Może już podjąłem decyzję",
+        "link": "https://www.bankier.pl/wiadomosc/Baza-wojsk-USA-w-Polsce-Trump-Moze-juz-podjalem-decyzje-9206281.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:27:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/b/e/6cbe91618f8110-948-568-128-0-4528-2717.jpg\" alt=\"\" align=\"left\" />Prezydent Donald Trump powiedział w czwartek, że przygląda się sprawie budowy bazy sił USA w Polsce i że może to nastąpić. Dopytywany o to, dlaczego nie podjął decyzji, odparł, że być może już podjął.</p>",
+        "contentSnippet": "Prezydent Donald Trump powiedział w czwartek, że przygląda się sprawie budowy bazy sił USA w Polsce i że może to nastąpić. Dopytywany o to, dlaczego nie podjął decyzji, odparł, że być może już podjął.",
+        "isoDate": "2026-10-01T18:27:00.000Z"
+      },
+      {
+        "title": "Falcon 9 wystartował z Florydy. Na pokładzie czworo astronautów",
+        "link": "https://www.bankier.pl/wiadomosc/Falcon-9-wystartowal-z-Florydy-Na-pokladzie-czworo-astronautow-9206289.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 19:52:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/0/c/1a33aeebc82bd2-948-568-0-0-4000-2399.jpg\" alt=\"\" align=\"left\" />Z przylądka Canaveral na Florydzie wystartowała w czwartek w kierunku Międzynarodowej Stacji Kosmicznej (ISS) rakieta Falcon 9 firmy SpaceX wraz z kapsułą Dragon. Na pokładzie statku jest dwójka astronautów amerykańskich, jeden kanadyjski oraz rosyjski kosmonauta.</p>",
+        "contentSnippet": "Z przylądka Canaveral na Florydzie wystartowała w czwartek w kierunku Międzynarodowej Stacji Kosmicznej (ISS) rakieta Falcon 9 firmy SpaceX wraz z kapsułą Dragon. Na pokładzie statku jest dwójka astronautów amerykańskich, jeden kanadyjski oraz rosyjski kosmonauta.",
+        "isoDate": "2026-10-01T18:52:00.000Z"
+      },
+      {
+        "title": "KE rozmawia o uwolnieniu rezerw ropy. W tle presja USA na Europę",
+        "link": "https://www.bankier.pl/wiadomosc/KE-rozmawia-o-uwolnieniu-rezerw-ropy-W-tle-presja-USA-na-Europe-9206232.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 18:00:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/f/b/5f8ad3527692fe-948-568-0-190-4000-2399.jpg\" alt=\"\" align=\"left\" />Komisja Europejska omówiła z państwami członkowskimi ewentualne uwolnienie rezerw ropy przed piątkowym spotkaniem Międzynarodowej Agencji Energetycznej (MAE) - przekazała w czwartek rzeczniczka KE Anna-Kaisa Itkonen.</p>",
+        "contentSnippet": "Komisja Europejska omówiła z państwami członkowskimi ewentualne uwolnienie rezerw ropy przed piątkowym spotkaniem Międzynarodowej Agencji Energetycznej (MAE) - przekazała w czwartek rzeczniczka KE Anna-Kaisa Itkonen.",
+        "isoDate": "2026-10-01T17:00:00.000Z"
+      },
+      {
+        "title": "Europa szykuje ripostę na Starlinka. Polski Iceye i Nokia stworzą nową sieć satelitarną ",
+        "link": "https://www.bankier.pl/wiadomosc/Europa-szykuje-riposte-na-Starlinka-Polski-Iceye-i-Nokia-stworza-nowa-siec-satelitarna-9205814.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 11:00:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/5/a/15f9648cdb826d-948-568-307-479-2340-1403.jpg\" alt=\"\" align=\"left\" />Iceye oraz Nokia łączą siły, aby stworzyć bezpieczne systemy komunikacji satelitarnej dla europejskiego sektora obronnego. Inicjatywa wpisuje się w rosnącą na Starym Kontynencie potrzebę budowy suwerennej infrastruktury telekomunikacyjnej i stanowi odpowiedź na dominację zagranicznych dostawców, takich jak Starlink - donosi agencja Bloomberga.</p>",
+        "contentSnippet": "Iceye oraz Nokia łączą siły, aby stworzyć bezpieczne systemy komunikacji satelitarnej dla europejskiego sektora obronnego. Inicjatywa wpisuje się w rosnącą na Starym Kontynencie potrzebę budowy suwerennej infrastruktury telekomunikacyjnej i stanowi odpowiedź na dominację zagranicznych dostawców, takich jak Starlink - donosi agencja Bloomberga.",
+        "isoDate": "2026-10-01T10:00:00.000Z"
+      },
+      {
+        "title": "PKP Cargo z nową p.o. prezes. Trzech członków zarządu odchodzi",
+        "link": "https://www.bankier.pl/wiadomosc/RN-PKP-Cargo-oddelegowala-Monike-Starecka-do-czasowego-wykonywania-czynnosci-prezesa-zarzadu-9206173.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 17:00:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/9/4/252c4a29c84412-948-568-104-130-3323-1994.jpg\" alt=\"\" align=\"left\" />Rada nadzorcza PKP Cargo w restrukturyzacji oddelegowała Monikę Starecką - członka RN, do czasowego, tj. od 2 października do 31 grudnia 2026 roku, wykonywania czynności prezesa zarządu oraz w okresie oddelegowania, powierzyła Pani Monice Stareckiej pełnienie obowiązków prezesa spółki - podało PKP Cargo w komunikacie.</p>",
+        "contentSnippet": "Rada nadzorcza PKP Cargo w restrukturyzacji oddelegowała Monikę Starecką - członka RN, do czasowego, tj. od 2 października do 31 grudnia 2026 roku, wykonywania czynności prezesa zarządu oraz w okresie oddelegowania, powierzyła Pani Monice Stareckiej pełnienie obowiązków prezesa spółki - podało PKP Cargo w komunikacie.",
+        "isoDate": "2026-10-01T16:00:00.000Z"
+      },
+      {
+        "title": "UE zaostrza kurs wobec migrantów. Będą kary finansowe i ograniczenia świadczeń",
+        "link": "https://www.bankier.pl/wiadomosc/UE-zaostrza-kurs-wobec-migrantow-Beda-kary-finansowe-i-ograniczenia-swiadczen-9206149.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 16:36:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/d/8/e532947e08154d-948-568-35-425-1960-1175.jpg\" alt=\"\" align=\"left\" />Państwa Unii Europejskiej przyjęły w czwartek nowe przepisy, które mają usprawnić odsyłanie osób niemających prawa do pobytu w UE. Rozporządzenie umożliwi m.in. tworzenie ośrodków powrotowych w państwach poza Unią.</p>",
+        "contentSnippet": "Państwa Unii Europejskiej przyjęły w czwartek nowe przepisy, które mają usprawnić odsyłanie osób niemających prawa do pobytu w UE. Rozporządzenie umożliwi m.in. tworzenie ośrodków powrotowych w państwach poza Unią.",
+        "isoDate": "2026-10-01T15:36:00.000Z"
+      },
+      {
+        "title": "Leopardy 2A8 będą montowane na Litwie. Ruszyła budowa zakładu",
+        "link": "https://www.bankier.pl/wiadomosc/Leopardy-2A8-beda-montowane-na-Litwie-Ruszyla-budowa-zakladu-9206186.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 17:12:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/3/0/293ca32b7ffdea-948-568-0-273-3496-2097.jpg\" alt=\"\" align=\"left\" />W Kownie na Litwie rozpoczęto w czwartek budowę zakładów montażu końcowego i serwisowania czołgów Leopard 2A8. Inwestycja ma wzmocnić współpracę obronną Litwy i Niemiec; docelowo planowany jest także montaż pojazdów na eksport.</p>",
+        "contentSnippet": "W Kownie na Litwie rozpoczęto w czwartek budowę zakładów montażu końcowego i serwisowania czołgów Leopard 2A8. Inwestycja ma wzmocnić współpracę obronną Litwy i Niemiec; docelowo planowany jest także montaż pojazdów na eksport.",
+        "isoDate": "2026-10-01T16:12:00.000Z"
+      },
+      {
+        "title": "Szpital w Miastku zbankrutował. Ponad 300 wierzycieli czeka na pieniądze",
+        "link": "https://www.bankier.pl/wiadomosc/Szpital-w-Miastku-zbankrutowal-Ponad-300-wierzycieli-czeka-na-pieniadze-9206115.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 15:58:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/e/4/5cf4bd37624d88-948-568-0-45-3629-2177.jpg\" alt=\"\" align=\"left\" />Sąd Rejonowy Gdańsk-Północ ogłosił upadłość zadłużonego na wiele milionów Szpitala Miejskiego w Miastku. Wyznaczył na syndyka doradcę restrukturyzacyjnego Dominikę Bączek. Termin zgłaszania wierzytelności mija 30 października.</p>",
+        "contentSnippet": "Sąd Rejonowy Gdańsk-Północ ogłosił upadłość zadłużonego na wiele milionów Szpitala Miejskiego w Miastku. Wyznaczył na syndyka doradcę restrukturyzacyjnego Dominikę Bączek. Termin zgłaszania wierzytelności mija 30 października.",
+        "isoDate": "2026-10-01T14:58:00.000Z"
+      },
+      {
+        "title": "Prokurator generalny Boliwii zatrzymany na lotnisku. W tle handel narkotykami",
+        "link": "https://www.bankier.pl/wiadomosc/Prokurator-generalny-Boliwii-zatrzymany-na-lotnisku-W-tle-handel-narkotykami-9206248.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 18:37:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/8/5/fe44963bd1bd6d-948-568-20-190-3980-2387.jpg\" alt=\"\" align=\"left\" />Prokurator generalny Boliwii Roger Mariaca został zatrzymany w związku z podejrzeniami o udział w organizacji przestępczej, pranie pieniędzy i handel narkotykami – poinformował w czwartek minister spraw wewnętrznych Marco Antonio Oviedo, cytowany przez agencję AFP.</p>",
+        "contentSnippet": "Prokurator generalny Boliwii Roger Mariaca został zatrzymany w związku z podejrzeniami o udział w organizacji przestępczej, pranie pieniędzy i handel narkotykami – poinformował w czwartek minister spraw wewnętrznych Marco Antonio Oviedo, cytowany przez agencję AFP.",
+        "isoDate": "2026-10-01T17:37:00.000Z"
+      },
+      {
+        "title": "Kolejny F-35 w Polsce. Dziewiąty „Husarz” dotarł do Łasku",
+        "link": "https://www.bankier.pl/wiadomosc/Kolejny-F-35-w-Polsce-Dziewiaty-Husarz-dotarl-do-Lasku-9206087.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 15:26:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/3/e/2f6a7e21d5d7bc-948-568-0-120-4000-2399.jpg\" alt=\"\" align=\"left\" />Do 32. Bazy Lotnictwa Taktycznego w Łasku (woj. łódzkie) dotarł dziewiąty samolot F-35 – poinformował w czwartek wicepremier, szef MON Władysław Kosiniak-Kamysz. Dodał, że to pierwsza maszyna dla Polski zmontowana na włoskiej linii produkcyjnej.</p>",
+        "contentSnippet": "Do 32. Bazy Lotnictwa Taktycznego w Łasku (woj. łódzkie) dotarł dziewiąty samolot F-35 – poinformował w czwartek wicepremier, szef MON Władysław Kosiniak-Kamysz. Dodał, że to pierwsza maszyna dla Polski zmontowana na włoskiej linii produkcyjnej.",
+        "isoDate": "2026-10-01T14:26:00.000Z"
+      },
+      {
+        "title": "Nawet 4200 zł premii za konto firmowe. ING dorzuca 5,5 proc. na oszczędności",
+        "link": "https://www.bankier.pl/wiadomosc/Rozkrec-biznes-z-ING-i-zyskaj-nawet-4200-zl-premii-w-prostej-promocji-9205119.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Wed, 30 Sep 2026 14:00:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/e/6/dca9a0d53b5a39-948-568-0-215-4538-2722.jpg\" alt=\"\" align=\"left\" />Nawet 4200 zł premii w pierwszy rok, 5,5% na koncie oszczędnościowym oraz darmowe prowadzenie rachunku przez 24 miesiące – to najważniejsze korzyści nowej promocji Konta Direct dla Firmy w ING Banku Śląskim. Prześwietlamy warunki oferty dla jednoosobowych działalności gospodarczych i podpowiadamy, jak krok po kroku sięgnąć po maksymalny bonus.</p>",
+        "contentSnippet": "Nawet 4200 zł premii w pierwszy rok, 5,5% na koncie oszczędnościowym oraz darmowe prowadzenie rachunku przez 24 miesiące – to najważniejsze korzyści nowej promocji Konta Direct dla Firmy w ING Banku Śląskim. Prześwietlamy warunki oferty dla jednoosobowych działalności gospodarczych i podpowiadamy, jak krok po kroku sięgnąć po maksymalny bonus.",
+        "isoDate": "2026-09-30T13:00:00.000Z"
+      },
+      {
+        "title": "Wielka Brytania wypuszcza więźniów. Ruszył program dla 4,5 tys. skazanych",
+        "link": "https://www.bankier.pl/wiadomosc/Wielka-Brytania-wypuszcza-wiezniow-Ruszyl-program-dla-4-5-tys-skazanych-9206214.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 17:33:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/0/d/529f81f5e57e84-948-568-0-604-4032-2419.jpg\" alt=\"\" align=\"left\" />Około 700 skazanych wyjść ma w czwartek z więzień w Anglii i Walii w pierwszym etapie nowego programu wcześniejszego zwalniania więźniów z zakładów. Rząd wprowadził go, bo od kilku lat w więzieniach brakuje miejsc.</p>",
+        "contentSnippet": "Około 700 skazanych wyjść ma w czwartek z więzień w Anglii i Walii w pierwszym etapie nowego programu wcześniejszego zwalniania więźniów z zakładów. Rząd wprowadził go, bo od kilku lat w więzieniach brakuje miejsc.",
+        "isoDate": "2026-10-01T16:33:00.000Z"
+      },
+      {
+        "title": "Chińscy hakerzy podszywali się pod ekspertów AI. Chcieli kraść hasła",
+        "link": "https://www.bankier.pl/wiadomosc/Chinscy-hakerzy-podszywali-sie-pod-ekspertow-AI-Chcieli-krasc-hasla-9206125.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 16:12:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/b/2/85e6bda363280f-948-568-3-72-1180-708.jpg\" alt=\"\" align=\"left\" />Chińscy hakerzy podszywali się pod amerykańskich ekspertów od AI, pracujących na uniwersytetach, think tankach i w innych ośrodkach, aby wykraść od nich informacje i hasła — podała w czwartek w swoim raporcie firma zajmująca się cyberbezpieczeństwem Proofpoint.</p>",
+        "contentSnippet": "Chińscy hakerzy podszywali się pod amerykańskich ekspertów od AI, pracujących na uniwersytetach, think tankach i w innych ośrodkach, aby wykraść od nich informacje i hasła — podała w czwartek w swoim raporcie firma zajmująca się cyberbezpieczeństwem Proofpoint.",
+        "isoDate": "2026-10-01T15:12:00.000Z"
+      },
+      {
+        "title": "Kolejne zatrzymania w sprawie Collegium Humanum. 11 osób usłyszało zarzuty",
+        "link": "https://www.bankier.pl/wiadomosc/Kolejne-zatrzymania-w-sprawie-Collegium-Humanum-11-osob-uslyszalo-zarzuty-9206138.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 16:27:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/b/b/1f2c780129130b-948-568-0-351-2988-1792.jpg\" alt=\"\" align=\"left\" />11 osób zatrzymanych w śledztwie dotyczącym m.in. Collegium Humanum usłyszało zarzuty dotyczące działania w zorganizowanej grupie przestępczej, poświadczania nieprawdy w dokumentach, ułatwiania pobytu cudzoziemcom wbrew przepisom oraz prania pieniędzy - poinformował w czwartek zespół prasowy CBA.</p>",
+        "contentSnippet": "11 osób zatrzymanych w śledztwie dotyczącym m.in. Collegium Humanum usłyszało zarzuty dotyczące działania w zorganizowanej grupie przestępczej, poświadczania nieprawdy w dokumentach, ułatwiania pobytu cudzoziemcom wbrew przepisom oraz prania pieniędzy - poinformował w czwartek zespół prasowy CBA.",
+        "isoDate": "2026-10-01T15:27:00.000Z"
+      },
+      {
+        "title": "Lotnisko Chopina pęka w szwach. 194 mln zł na zwiększenie przepustowości",
+        "link": "https://www.bankier.pl/wiadomosc/Lotnisko-Chopina-peka-w-szwach-194-mln-zl-na-zwiekszenie-przepustowosci-9206091.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 15:29:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/3/4/475790457ce3e2-948-567-0-7-1000-599.jpg\" alt=\"\" align=\"left\" />Na warszawskim Lotnisku Chopina oddano w czwartek do użytku nową płytę postojową o powierzchni 60 tys. mkw. Pozwoli to obsłużyć ok. 13 tys. dodatkowych samolotów rocznie.</p>",
+        "contentSnippet": "Na warszawskim Lotnisku Chopina oddano w czwartek do użytku nową płytę postojową o powierzchni 60 tys. mkw. Pozwoli to obsłużyć ok. 13 tys. dodatkowych samolotów rocznie.",
+        "isoDate": "2026-10-01T14:29:00.000Z"
+      },
+      {
+        "title": "Pasażerowie nie polecą Emirates do Tel Awiwu. Linie reagują na próbę porwania",
+        "link": "https://www.bankier.pl/wiadomosc/Emirates-zaostrza-zasady-dla-Izraelczykow-Chodzi-o-loty-przez-Dubaj-do-Tel-Awiwu-9206084.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 15:23:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/2/b/87c8b5c024d776-948-568-0-1255-3100-1859.jpg\" alt=\"\" align=\"left\" />Flagowe emirackie linie Emirates poinformowały, że pasażerowie na całym świecie nie będą mogli wsiadać do ich samolotów, jeśli ostatecznym celem podróży jest Tel Awiw. Decyzję podjęto po środowej próbie porwania samolotu flydubai na trasie Dubaj–Tel Awiw.</p>",
+        "contentSnippet": "Flagowe emirackie linie Emirates poinformowały, że pasażerowie na całym świecie nie będą mogli wsiadać do ich samolotów, jeśli ostatecznym celem podróży jest Tel Awiw. Decyzję podjęto po środowej próbie porwania samolotu flydubai na trasie Dubaj–Tel Awiw.",
+        "isoDate": "2026-10-01T14:23:00.000Z"
+      },
+      {
+        "title": "Rząd szykuje nowe przepisy dla rynku wodoru. Bariery mają zniknąć ",
+        "link": "https://www.bankier.pl/wiadomosc/Rzad-szykuje-nowe-przepisy-dla-rynku-wodoru-Bariery-maja-zniknac-9206040.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 14:32:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/a/c/51563c4f57e2cf-948-568-517-112-2891-1734.jpg\" alt=\"\" align=\"left\" />Ministerstwo Energii przygotowuje nowy pakiet przepisów upraszczających dostęp do rynku wodoru - poinformował w czwartek wiceminister energii Piotr Masłowski.</p>",
+        "contentSnippet": "Ministerstwo Energii przygotowuje nowy pakiet przepisów upraszczających dostęp do rynku wodoru - poinformował w czwartek wiceminister energii Piotr Masłowski.",
+        "isoDate": "2026-10-01T13:32:00.000Z"
+      },
+      {
+        "title": "Tragiczny finał interwencji w Kraśniku Górnym. 33-latek z zarzutem zabójstwa",
+        "link": "https://www.bankier.pl/wiadomosc/Tragiczny-final-interwencji-w-Krasniku-Gornym-33-latek-z-zarzutem-zabojstwa-9206073.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 15:08:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/f/f/ec2d750eacec59-948-568-28-4-1493-896.jpg\" alt=\"\" align=\"left\" />Mężczyzna, który 24 września postrzelił w Kraśniku Górnym policjanta, usłyszał zarzut zabójstwa — poinformowała prokuratura. Początkowo śledczy zarzucili mu usiłowanie zabójstwa. Dzień później 29-letni funkcjonariusz zmarł jednak w szpitalu. Dlatego śledczy zmienili rodzaj zarzutu dla 33-letniego Mariusza G.</p>",
+        "contentSnippet": "Mężczyzna, który 24 września postrzelił w Kraśniku Górnym policjanta, usłyszał zarzut zabójstwa — poinformowała prokuratura. Początkowo śledczy zarzucili mu usiłowanie zabójstwa. Dzień później 29-letni funkcjonariusz zmarł jednak w szpitalu. Dlatego śledczy zmienili rodzaj zarzutu dla 33-letniego Mariusza G.",
+        "isoDate": "2026-10-01T14:08:00.000Z"
+      },
+      {
+        "title": "Team Poland i miliardy na inwestycje. Polska rusza na podbój zagranicy",
+        "link": "https://www.bankier.pl/wiadomosc/Team-Poland-i-miliardy-na-inwestycje-Polska-ruszy-na-podboj-zagranicy-9206045.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 14:34:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/c/7/2ac9db7386c7fe-948-568-70-100-3890-2333.jpg\" alt=\"\" align=\"left\" />Nowy prezes PFR Mikołaj Raczyński przedstawił 4 główne kierunki działalności Funduszu pod jego kierownictwem: wspieranie inwestycji bezpośrednich w Polsce, ekspansję zagraniczną polskich firm, rozwój platformy Innovate Poland mobilizującej środki do sektora prywatnego, a także działalność akceleracyjną firm w ramach platformy Accelerate Poland.</p>",
+        "contentSnippet": "Nowy prezes PFR Mikołaj Raczyński przedstawił 4 główne kierunki działalności Funduszu pod jego kierownictwem: wspieranie inwestycji bezpośrednich w Polsce, ekspansję zagraniczną polskich firm, rozwój platformy Innovate Poland mobilizującej środki do sektora prywatnego, a także działalność akceleracyjną firm w ramach platformy Accelerate Poland.",
+        "isoDate": "2026-10-01T13:34:00.000Z"
+      },
+      {
+        "title": "Pentagon nie zaprosił ważnych sojuszników na spotkanie NATO w Polsce",
+        "link": "https://www.bankier.pl/wiadomosc/Pentagon-nie-zaprosil-waznych-sojusznikow-na-spotkanie-NATO-w-Polsce-9206062.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 14:56:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/a/b/e531ba6e015e8d-948-568-10-10-3990-2393.jpg\" alt=\"\" align=\"left\" />Pentagon nie zaprosił ważnych członków NATO, w tym Francji, Wielkiej Brytanii i krajów bałtyckich, na planowane w październiku w Warszawie spotkanie nieformalnej grupy roboczej poświęcone przyszłości Sojuszu - informuje portal Politico. Jak dodaje, budzi to obawy przed wewnętrznymi podziałami w NATO.</p>",
+        "contentSnippet": "Pentagon nie zaprosił ważnych członków NATO, w tym Francji, Wielkiej Brytanii i krajów bałtyckich, na planowane w październiku w Warszawie spotkanie nieformalnej grupy roboczej poświęcone przyszłości Sojuszu - informuje portal Politico. Jak dodaje, budzi to obawy przed wewnętrznymi podziałami w NATO.",
+        "isoDate": "2026-10-01T13:56:00.000Z"
+      },
+      {
+        "title": "Do 1000 zł za Konto Millennium 360°. Jak zdobyć wszystkie bonusy?",
+        "link": "https://www.bankier.pl/wiadomosc/Do-1000-zl-za-Konto-Millennium-360-Jak-zdobyc-wszystkie-bonusy-9197119.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Tue, 15 Sep 2026 10:40:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/c/c/b58b6fe064d0e5-948-568-0-142-3000-1799.jpg\" alt=\"\" align=\"left\" />Nawet 1000 zł premii można zgarnąć w promocji Banku Millennium. Na nowych klientów czeka do 700 zł za Konto Millennium 360°, a rodzice mogą dorzucić kolejne 300 zł za rachunek dla dziecka. Sprawdzamy, jakie warunki trzeba spełnić, aby otrzymać pełną pulę nagród i na co uważać, żeby nie stracić premii.</p>",
+        "contentSnippet": "Nawet 1000 zł premii można zgarnąć w promocji Banku Millennium. Na nowych klientów czeka do 700 zł za Konto Millennium 360°, a rodzice mogą dorzucić kolejne 300 zł za rachunek dla dziecka. Sprawdzamy, jakie warunki trzeba spełnić, aby otrzymać pełną pulę nagród i na co uważać, żeby nie stracić premii.",
+        "isoDate": "2026-09-15T09:40:00.000Z"
+      },
+      {
+        "title": "„Grożą nam głód i destabilizacja”. Niemcy apelują o częściowe zawieszenie broni",
+        "link": "https://www.bankier.pl/wiadomosc/Groza-nam-glod-i-destabilizacja-Niemcy-apeluja-o-czesciowe-zawieszenie-broni-9205964.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 13:34:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/0/2/6818bd1cd06206-948-568-280-200-3720-2231.jpg\" alt=\"\" align=\"left\" />Szef niemieckiej dyplomacji Johann Wadephul wezwał w czwartek do częściowego zawieszenia broni, które umożliwiłoby zwiększenie eksportu zboża z Ukrainy i Rosji. Ostrzegł, że spowodowane wojną ograniczenia w handlu mogą doprowadzić do głodu i destabilizacji.</p>",
+        "contentSnippet": "Szef niemieckiej dyplomacji Johann Wadephul wezwał w czwartek do częściowego zawieszenia broni, które umożliwiłoby zwiększenie eksportu zboża z Ukrainy i Rosji. Ostrzegł, że spowodowane wojną ograniczenia w handlu mogą doprowadzić do głodu i destabilizacji.",
+        "isoDate": "2026-10-01T12:34:00.000Z"
+      },
+      {
+        "title": "Miliardy płyną do Polski. 65,5 mld zł zagranicznych inwestycji ",
+        "link": "https://www.bankier.pl/wiadomosc/Miliardy-plyna-do-Polski-65-5-mld-zl-zagranicznych-inwestycji-9206044.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 14:34:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/e/f/ba3ab86e52851d-948-568-0-364-2593-1555.png\" alt=\"\" align=\"left\" />W 2025 roku napływ kapitału netto z tytułu zagranicznych inwestycji bezpośrednich w Polsce wyniósł 65,5 mld zł, co oznacza wzrost o 2,6 proc. rdr - wynika z raportu Narodowego Banku Polskiego.</p>",
+        "contentSnippet": "W 2025 roku napływ kapitału netto z tytułu zagranicznych inwestycji bezpośrednich w Polsce wyniósł 65,5 mld zł, co oznacza wzrost o 2,6 proc. rdr - wynika z raportu Narodowego Banku Polskiego.",
+        "isoDate": "2026-10-01T13:34:00.000Z"
+      },
+      {
+        "title": "Korea Płd. studzi zapowiedzi Trumpa. Nie ma decyzji o inwestycji na Alasce",
+        "link": "https://www.bankier.pl/wiadomosc/Korea-Pld-studzi-zapowiedzi-Trumpa-Nie-ma-decyzji-o-inwestycji-na-Alasce-9205958.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 13:08:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/1/8/4716834f2f307d-948-568-0-189-2813-1687.jpg\" alt=\"\" align=\"left\" />Minister przemysłu Korei Płd. Kim Dzong Kwan oświadczył w czwartek, że rząd w Seulu nie podjął decyzji w sprawie inwestycji na Alasce, wbrew temu, co dzień wcześniej deklarował prezydent USA Donald Trump – podała agencja Yonhap. Szef resortu poinformował o złożeniu protestu na ręce władz w Waszyngtonie.</p>",
+        "contentSnippet": "Minister przemysłu Korei Płd. Kim Dzong Kwan oświadczył w czwartek, że rząd w Seulu nie podjął decyzji w sprawie inwestycji na Alasce, wbrew temu, co dzień wcześniej deklarował prezydent USA Donald Trump – podała agencja Yonhap. Szef resortu poinformował o złożeniu protestu na ręce władz w Waszyngtonie.",
+        "isoDate": "2026-10-01T12:08:00.000Z"
+      },
+      {
+        "title": "Partia Petera Magyara traci poparcie. Fidesz Orbana odrabia straty",
+        "link": "https://www.bankier.pl/wiadomosc/Partia-Petera-Magyara-traci-poparcie-Fidesz-Orbana-odrabia-straty-9205973.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 13:23:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/0/d/60e2e880f8a507-948-568-780-20-3200-1920.jpg\" alt=\"\" align=\"left\" />Przewaga partii Tisza premiera Węgier Petera Magyara maleje drugi miesiąc z rzędu. Mimo to jej poparcie jest wciąż ponad dwukrotnie wyższe niż poparcie dla Fideszu byłego premiera Viktora Orbana - wynika z sondażu Instytutu Republikon, opublikowanego w czwartek przez dziennik „Nepszava”.</p>",
+        "contentSnippet": "Przewaga partii Tisza premiera Węgier Petera Magyara maleje drugi miesiąc z rzędu. Mimo to jej poparcie jest wciąż ponad dwukrotnie wyższe niż poparcie dla Fideszu byłego premiera Viktora Orbana - wynika z sondażu Instytutu Republikon, opublikowanego w czwartek przez dziennik „Nepszava”.",
+        "isoDate": "2026-10-01T12:23:00.000Z"
+      },
+      {
+        "title": "Szybkie 700 zł od Erste Banku za konto osobiste. Podpowiadamy, jak zdobyć pełną pulę",
+        "link": "https://www.bankier.pl/wiadomosc/Erste-Bank-daje-szybkie-700-zl-za-konto-osobiste-Podpowiadamy-jak-zdobyc-pelna-pule-9204981.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 06:00:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/4/6/f46c839de6450b-948-568-123-0-1856-1113.jpg\" alt=\"\" align=\"left\" />Erste Bank ruszył z nową promocją. Kusi nowych klientów 700 zł premii. Inaczej niż u części konkurencji, na wypłatę pełnej puli nie trzeba czekać jednak całego roku. Sprawdzamy krok po kroku, jakie warunki trzeba spełnić, by co miesiąc na konto wpłynęło po 200 zł i jak zdobyć bonusowe 100 zł.</p>",
+        "contentSnippet": "Erste Bank ruszył z nową promocją. Kusi nowych klientów 700 zł premii. Inaczej niż u części konkurencji, na wypłatę pełnej puli nie trzeba czekać jednak całego roku. Sprawdzamy krok po kroku, jakie warunki trzeba spełnić, by co miesiąc na konto wpłynęło po 200 zł i jak zdobyć bonusowe 100 zł.",
+        "isoDate": "2026-10-01T05:00:00.000Z"
+      },
+      {
+        "title": "Polski przemysł wciąż pod kreską, ale spadek wyhamowuje. PMI powyżej oczekiwań",
+        "link": "https://www.bankier.pl/wiadomosc/Polski-przemysl-wciaz-pod-kreska-ale-spadek-wyhamowuje-PMI-powyzej-oczekiwan-9205734.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 09:25:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/b/0/d0c71897ab351f-948-568-300-165-1700-1019.jpg\" alt=\"\" align=\"left\" />Wrześniowy odczyt wskaźnika S&amp;P Global PMI dla polskiego sektora wytwórczego okazał się lepszy od sierpniowego wyniku oraz prognoz ekonomistów. Mimo że wartość indeksu od maja 2025 roku nieprzerwanie plasuje się poniżej neutralnej granicy 50 pkt - oddzielającej rozwój od regresu - to skala spadku kluczowych parametrów wyhamowała.</p>",
+        "contentSnippet": "Wrześniowy odczyt wskaźnika S&P Global PMI dla polskiego sektora wytwórczego okazał się lepszy od sierpniowego wyniku oraz prognoz ekonomistów. Mimo że wartość indeksu od maja 2025 roku nieprzerwanie plasuje się poniżej neutralnej granicy 50 pkt - oddzielającej rozwój od regresu - to skala spadku kluczowych parametrów wyhamowała.",
+        "isoDate": "2026-10-01T08:25:00.000Z"
+      },
+      {
+        "title": "Francuscy uczniowie blokują szkoły. Premier zwołał spotkanie grupy antykryzysowej ",
+        "link": "https://www.bankier.pl/wiadomosc/Francuscy-uczniowie-blokuja-szkoly-Do-protestow-dolaczyli-studenci-9205782.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Thu, 1 Oct 2026 12:00:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/3/1/61b52ddc41b0de-948-568-0-0-1905-1143.jpg\" alt=\"\" align=\"left\" />Premier Francji Sebastien Lecornu zwołał na czwartek spotkanie grupy antykryzysowej w sprawie fali protestów w liceach. Wystąpienia te trwają od kilku dni w różnych miastach kraju i zaczynają obfitować w akty przemocy.</p>",
+        "contentSnippet": "Premier Francji Sebastien Lecornu zwołał na czwartek spotkanie grupy antykryzysowej w sprawie fali protestów w liceach. Wystąpienia te trwają od kilku dni w różnych miastach kraju i zaczynają obfitować w akty przemocy.",
+        "isoDate": "2026-10-01T11:00:00.000Z"
+      },
+      {
+        "title": "Chiny przygotowują grunt pod „dyplomację szczepionkową”",
+        "link": "https://www.bankier.pl/wiadomosc/Chiny-przygotowuja-grunt-pod-dyplomacje-szczepionkowa-7961137.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Sun, 13 Sep 2020 07:16:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/1/b/b819cc0c042afd-945-560-21-185-4346-2607.jpg\" alt=\"\" align=\"left\" />Władze ChRL obiecują niektórym krajom priorytetowy dostęp do opracowanych przez chińskie firmy szczepionek przeciw Covid-19 albo oferują im pożyczki na zakup pożądanych dawek. Część komentatorów ocenia to jako początek „dyplomacji szczepionkowej” Pekinu.</p>",
+        "contentSnippet": "Władze ChRL obiecują niektórym krajom priorytetowy dostęp do opracowanych przez chińskie firmy szczepionek przeciw Covid-19 albo oferują im pożyczki na zakup pożądanych dawek. Część komentatorów ocenia to jako początek „dyplomacji szczepionkowej” Pekinu.",
+        "isoDate": "2020-09-13T06:16:00.000Z"
+      },
+      {
+        "title": "Dom Development sprzedał w III kw. 995 lokali netto, więcej rdr o 6 proc.",
+        "link": "https://www.bankier.pl/wiadomosc/Dom-Development-sprzedal-w-III-kw-995-lokali-netto-wiecej-rdr-o-6-proc-7973419.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Fri, 2 Oct 2020 10:18:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/c/d/0a2c4a7c4eaacc-948-568-26-8-3473-2084.jpg\" alt=\"\" align=\"left\" />Grupa Dom Development sprzedała w trzecim kwartale 2020 roku 995 lokali netto, co oznacza wzrost kdk o 22 proc. i rdr o 6 proc. - poinformował deweloper w komunikacie. Grupa przekazała w tym czasie klientom 692 lokale, czyli o 18 proc. mniej niż rok wcześniej.</p>",
+        "contentSnippet": "Grupa Dom Development sprzedała w trzecim kwartale 2020 roku 995 lokali netto, co oznacza wzrost kdk o 22 proc. i rdr o 6 proc. - poinformował deweloper w komunikacie. Grupa przekazała w tym czasie klientom 692 lokale, czyli o 18 proc. mniej niż rok wcześniej.",
+        "isoDate": "2020-10-02T09:18:00.000Z"
+      },
+      {
+        "title": "Fundusz Hipoteczny Yanok usunięty z listy ostrzeżeń KNF",
+        "link": "https://www.bankier.pl/wiadomosc/Fundusz-Hipoteczny-Yanok-na-liscie-ostrzezen-KNF-7973397.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Fri, 2 Oct 2020 09:46:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/d/b/6f2d1b3e1ed7b4-945-560-0-0-1000-599.jpg\" alt=\"\" align=\"left\" />22 lipca Fundusz Hipoteczny Yanok został wykreślony z listy ostrzeżeń publicznych KNF. Widniał tam od 2020 roku.   </p>",
+        "contentSnippet": "22 lipca Fundusz Hipoteczny Yanok został wykreślony z listy ostrzeżeń publicznych KNF. Widniał tam od 2020 roku.",
+        "isoDate": "2020-10-02T08:46:00.000Z"
+      },
+      {
+        "title": "BM PKO BP liderem obrotów na rynku akcji GPW we wrześniu",
+        "link": "https://www.bankier.pl/wiadomosc/BM-PKO-BP-liderem-obrotow-na-rynku-akcji-GPW-we-wrzesniu-na-drugim-miejscu-Merrill-Lynch-7973406.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Fri, 2 Oct 2020 10:04:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/a/6/5ad7a556f428c8-945-567-69-20-2705-1623.jpg\" alt=\"\" align=\"left\" />BM PKO BP we wrześniu 2020 roku powrócił na pozycję lidera obrotów na rynku akcji w transakcjach sesyjnych GPW. Na drugim miejscu znalazł się lider sierpniowego zestawienia Merrill Lynch - podała GPW na stronie internetowej.</p>",
+        "contentSnippet": "BM PKO BP we wrześniu 2020 roku powrócił na pozycję lidera obrotów na rynku akcji w transakcjach sesyjnych GPW. Na drugim miejscu znalazł się lider sierpniowego zestawienia Merrill Lynch - podała GPW na stronie internetowej.",
+        "isoDate": "2020-10-02T09:04:00.000Z"
+      },
+      {
+        "title": "Nadal brak porozumienia ws. brexitu",
+        "link": "https://www.bankier.pl/wiadomosc/Nadal-brak-porozumienia-ws-brexitu-7961148.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Sun, 13 Sep 2020 08:41:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/3/1/62a4081ed5b89a-948-568-0-17-1730-1037.jpg\" alt=\"\" align=\"left\" />Unia Europejska i Wielka Brytania na razie nie doszły do porozumienia ws. zasad, na jakich będzie odbywał się handel między krajami - powiedział PAP ekspert Instytutu Ekonomiki Rolnictwa i Gospodarki Żywnościowej Łukasz Ambroziak. Zjednoczone Królestwo jest dla Polski trzecim co do wielkości partnerem handlowym, a w przypadku żywności - drugim.</p>",
+        "contentSnippet": "Unia Europejska i Wielka Brytania na razie nie doszły do porozumienia ws. zasad, na jakich będzie odbywał się handel między krajami - powiedział PAP ekspert Instytutu Ekonomiki Rolnictwa i Gospodarki Żywnościowej Łukasz Ambroziak. Zjednoczone Królestwo jest dla Polski trzecim co do wielkości partnerem handlowym, a w przypadku żywności - drugim.",
+        "isoDate": "2020-09-13T07:41:00.000Z"
+      },
+      {
+        "title": "Premier: Naprawiamy i budujemy tysiące kilometrów dróg",
+        "link": "https://www.bankier.pl/wiadomosc/Premier-Naprawiamy-i-budujemy-tysiace-kilometrow-drog-7961169.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Sun, 13 Sep 2020 10:52:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/9/0/19ff147aa2d230-887-532-57-0-887-532.jpg\" alt=\"\" align=\"left\" />Naprawiamy tysiące kilometrów dróg, remontujemy, modernizujemy, ale także tworzymy nowe drogi we wszystkich zakątkach Polski - mówił premier Mateusz Morawiecki podczas otwarcia drogi w woj. wielkopolskim.</p>",
+        "contentSnippet": "Naprawiamy tysiące kilometrów dróg, remontujemy, modernizujemy, ale także tworzymy nowe drogi we wszystkich zakątkach Polski - mówił premier Mateusz Morawiecki podczas otwarcia drogi w woj. wielkopolskim.",
+        "isoDate": "2020-09-13T09:52:00.000Z"
+      },
+      {
+        "title": "Austria weszła w drugą falę epidemii koronawirusa",
+        "link": "https://www.bankier.pl/wiadomosc/Austria-weszla-w-druga-fale-epidemii-koronawirusa-7961165.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+        "pubDate": "Sun, 13 Sep 2020 10:25:00 +0100",
+        "content": "<p><img width=\"945\" height=\"560\" class=\"webfeedsFeaturedVisual\" style=\"display: block; margin-bottom: 5px; clear:both;max-width: 100%;\" src=\"http://galeria.bankier.pl/p/0/9/460ed663abc505-948-568-61-0-1767-1060.jpg\" alt=\"\" align=\"left\" />Austria weszła w \"drugą falę\" infekcji koronawirusa - powiedział w niedzielę premier Sebastian Kurz, zwracając uwagę na rosnącą liczbę pozytywnych testów.</p>",
+        "contentSnippet": "Austria weszła w \"drugą falę\" infekcji koronawirusa - powiedział w niedzielę premier Sebastian Kurz, zwracając uwagę na rosnącą liczbę pozytywnych testów.",
+        "isoDate": "2020-09-13T09:25:00.000Z"
+      }
+    ],
+    "RSS: Hacker News": [
+      {
+        "creator": "gumby",
+        "title": "Oxygen-deprived underwater zones may not be \"dead zones\" but clue to early life",
+        "link": "https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2026AV002570",
+        "pubDate": "Thu, 01 Oct 2026 19:03:42 +0000",
+        "dc:creator": "gumby",
+        "comments": "https://news.ycombinator.com/item?id=49925742",
+        "content": "\n<p>Article URL: <a href=\"https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2026AV002570\">https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2026AV002570</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49925742\">https://news.ycombinator.com/item?id=49925742</a></p>\n<p>Points: 4</p>\n<p># Comments: 0</p>\n",
+        "contentSnippet": "Article URL: https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2026AV002570\nComments URL: https://news.ycombinator.com/item?id=49925742\nPoints: 4\n# Comments: 0",
+        "guid": "https://news.ycombinator.com/item?id=49925742",
+        "isoDate": "2026-10-01T19:03:42.000Z"
+      },
+      {
+        "creator": "nerdypepper",
+        "title": "Bez: Generating a browser engine from specs and tests",
+        "link": "https://tangled.org/burrito.space/bez",
+        "pubDate": "Thu, 01 Oct 2026 18:08:03 +0000",
+        "dc:creator": "nerdypepper",
+        "comments": "https://news.ycombinator.com/item?id=49925036",
+        "content": "\n<p>Article URL: <a href=\"https://tangled.org/burrito.space/bez\">https://tangled.org/burrito.space/bez</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49925036\">https://news.ycombinator.com/item?id=49925036</a></p>\n<p>Points: 23</p>\n<p># Comments: 0</p>\n",
+        "contentSnippet": "Article URL: https://tangled.org/burrito.space/bez\nComments URL: https://news.ycombinator.com/item?id=49925036\nPoints: 23\n# Comments: 0",
+        "guid": "https://news.ycombinator.com/item?id=49925036",
+        "isoDate": "2026-10-01T18:08:03.000Z"
+      },
+      {
+        "creator": "ekluger",
+        "title": "SlutCon",
+        "link": "https://www.thenewcritic.com/p/safe-at-slutcon",
+        "pubDate": "Thu, 01 Oct 2026 17:12:15 +0000",
+        "dc:creator": "ekluger",
+        "comments": "https://news.ycombinator.com/item?id=49924354",
+        "content": "\n<p>Article URL: <a href=\"https://www.thenewcritic.com/p/safe-at-slutcon\">https://www.thenewcritic.com/p/safe-at-slutcon</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49924354\">https://news.ycombinator.com/item?id=49924354</a></p>\n<p>Points: 15</p>\n<p># Comments: 0</p>\n",
+        "contentSnippet": "Article URL: https://www.thenewcritic.com/p/safe-at-slutcon\nComments URL: https://news.ycombinator.com/item?id=49924354\nPoints: 15\n# Comments: 0",
+        "guid": "https://news.ycombinator.com/item?id=49924354",
+        "isoDate": "2026-10-01T17:12:15.000Z"
+      },
+      {
+        "creator": "craigkerstiens",
+        "title": "ParadeDB Search Performance Improvements",
+        "link": "https://www.paradedb.com/blog/opening-a-closed-tin",
+        "pubDate": "Thu, 01 Oct 2026 17:05:01 +0000",
+        "dc:creator": "craigkerstiens",
+        "comments": "https://news.ycombinator.com/item?id=49924275",
+        "content": "\n<p>Article URL: <a href=\"https://www.paradedb.com/blog/opening-a-closed-tin\">https://www.paradedb.com/blog/opening-a-closed-tin</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49924275\">https://news.ycombinator.com/item?id=49924275</a></p>\n<p>Points: 39</p>\n<p># Comments: 7</p>\n",
+        "contentSnippet": "Article URL: https://www.paradedb.com/blog/opening-a-closed-tin\nComments URL: https://news.ycombinator.com/item?id=49924275\nPoints: 39\n# Comments: 7",
+        "guid": "https://news.ycombinator.com/item?id=49924275",
+        "isoDate": "2026-10-01T17:05:01.000Z"
+      },
+      {
+        "creator": "jasondavies",
+        "title": "Clef: Open-source decision models, and new RL fine-tuning platform",
+        "link": "https://blog.cloudflare.com/clef-decision-models/",
+        "pubDate": "Thu, 01 Oct 2026 16:18:57 +0000",
+        "dc:creator": "jasondavies",
+        "comments": "https://news.ycombinator.com/item?id=49923692",
+        "content": "\n<p>Article URL: <a href=\"https://blog.cloudflare.com/clef-decision-models/\">https://blog.cloudflare.com/clef-decision-models/</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49923692\">https://news.ycombinator.com/item?id=49923692</a></p>\n<p>Points: 268</p>\n<p># Comments: 102</p>\n",
+        "contentSnippet": "Article URL: https://blog.cloudflare.com/clef-decision-models/\nComments URL: https://news.ycombinator.com/item?id=49923692\nPoints: 268\n# Comments: 102",
+        "guid": "https://news.ycombinator.com/item?id=49923692",
+        "isoDate": "2026-10-01T16:18:57.000Z"
+      },
+      {
+        "creator": "beatrizalmeidaf",
+        "title": "Lightweight PDF parser with layout, tables, formulas and bounding boxes",
+        "link": "https://github.com/beatrizalmeidaf/papero-pdf-text-extractor",
+        "pubDate": "Thu, 01 Oct 2026 16:14:40 +0000",
+        "dc:creator": "beatrizalmeidaf",
+        "comments": "https://news.ycombinator.com/item?id=49923638",
+        "content": "\n<p>Article URL: <a href=\"https://github.com/beatrizalmeidaf/papero-pdf-text-extractor\">https://github.com/beatrizalmeidaf/papero-pdf-text-extractor</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49923638\">https://news.ycombinator.com/item?id=49923638</a></p>\n<p>Points: 39</p>\n<p># Comments: 7</p>\n",
+        "contentSnippet": "Article URL: https://github.com/beatrizalmeidaf/papero-pdf-text-extractor\nComments URL: https://news.ycombinator.com/item?id=49923638\nPoints: 39\n# Comments: 7",
+        "guid": "https://news.ycombinator.com/item?id=49923638",
+        "isoDate": "2026-10-01T16:14:40.000Z"
+      },
+      {
+        "creator": "razin",
+        "title": "RIP, vector database",
+        "link": "https://turbopuffer.com/blog/rip-vector-database",
+        "pubDate": "Thu, 01 Oct 2026 16:01:56 +0000",
+        "dc:creator": "razin",
+        "comments": "https://news.ycombinator.com/item?id=49923466",
+        "content": "\n<p>Article URL: <a href=\"https://turbopuffer.com/blog/rip-vector-database\">https://turbopuffer.com/blog/rip-vector-database</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49923466\">https://news.ycombinator.com/item?id=49923466</a></p>\n<p>Points: 180</p>\n<p># Comments: 51</p>\n",
+        "contentSnippet": "Article URL: https://turbopuffer.com/blog/rip-vector-database\nComments URL: https://news.ycombinator.com/item?id=49923466\nPoints: 180\n# Comments: 51",
+        "guid": "https://news.ycombinator.com/item?id=49923466",
+        "isoDate": "2026-10-01T16:01:56.000Z"
+      },
+      {
+        "creator": "amcclure",
+        "title": "Red Hat being phased out of existence?",
+        "link": "https://techrights.org/n/2026/10/01/Red_Hat_Being_Phased_Out_of_Existence_Like_Many_Other_Companies.shtml",
+        "pubDate": "Thu, 01 Oct 2026 15:33:26 +0000",
+        "dc:creator": "amcclure",
+        "comments": "https://news.ycombinator.com/item?id=49923056",
+        "content": "\n<p>Article URL: <a href=\"https://techrights.org/n/2026/10/01/Red_Hat_Being_Phased_Out_of_Existence_Like_Many_Other_Companies.shtml\">https://techrights.org/n/2026/10/01/Red_Hat_Being_Phased_Out_of_Existence_Like_Many_Other_Companies.shtml</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49923056\">https://news.ycombinator.com/item?id=49923056</a></p>\n<p>Points: 127</p>\n<p># Comments: 65</p>\n",
+        "contentSnippet": "Article URL: https://techrights.org/n/2026/10/01/Red_Hat_Being_Phased_Out_of_Existence_Like_Many_Other_Companies.shtml\nComments URL: https://news.ycombinator.com/item?id=49923056\nPoints: 127\n# Comments: 65",
+        "guid": "https://news.ycombinator.com/item?id=49923056",
+        "isoDate": "2026-10-01T15:33:26.000Z"
+      },
+      {
+        "creator": "cgeier",
+        "title": "Identity Management for Agentic AI [pdf] (2025)",
+        "link": "https://openid.net/wp-content/uploads/2025/10/Identity-Management-for-Agentic-AI.pdf",
+        "pubDate": "Thu, 01 Oct 2026 15:11:10 +0000",
+        "dc:creator": "cgeier",
+        "comments": "https://news.ycombinator.com/item?id=49922736",
+        "content": "\n<p>Article URL: <a href=\"https://openid.net/wp-content/uploads/2025/10/Identity-Management-for-Agentic-AI.pdf\">https://openid.net/wp-content/uploads/2025/10/Identity-Management-for-Agentic-AI.pdf</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922736\">https://news.ycombinator.com/item?id=49922736</a></p>\n<p>Points: 54</p>\n<p># Comments: 13</p>\n",
+        "contentSnippet": "Article URL: https://openid.net/wp-content/uploads/2025/10/Identity-Management-for-Agentic-AI.pdf\nComments URL: https://news.ycombinator.com/item?id=49922736\nPoints: 54\n# Comments: 13",
+        "guid": "https://news.ycombinator.com/item?id=49922736",
+        "isoDate": "2026-10-01T15:11:10.000Z"
+      },
+      {
+        "creator": "thdr",
+        "title": "Figma restricts MCP access to whitelisted clients, excluding Pi",
+        "link": "https://twitter.com/GayaniFigma/status/2105295629941350454",
+        "pubDate": "Thu, 01 Oct 2026 15:10:46 +0000",
+        "dc:creator": "thdr",
+        "comments": "https://news.ycombinator.com/item?id=49922729",
+        "content": "\n<p>Article URL: <a href=\"https://twitter.com/GayaniFigma/status/2105295629941350454\">https://twitter.com/GayaniFigma/status/2105295629941350454</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922729\">https://news.ycombinator.com/item?id=49922729</a></p>\n<p>Points: 131</p>\n<p># Comments: 73</p>\n",
+        "contentSnippet": "Article URL: https://twitter.com/GayaniFigma/status/2105295629941350454\nComments URL: https://news.ycombinator.com/item?id=49922729\nPoints: 131\n# Comments: 73",
+        "guid": "https://news.ycombinator.com/item?id=49922729",
+        "isoDate": "2026-10-01T15:10:46.000Z"
+      },
+      {
+        "creator": "nkw",
+        "title": "Various Projects Find Hidden SDR Capabilities in ESP32 Microcontrollers",
+        "link": "https://www.rtl-sdr.com/various-projects-independently-find-hidden-sdr-capabilities-in-esp32-microcontrollers/",
+        "pubDate": "Thu, 01 Oct 2026 15:07:42 +0000",
+        "dc:creator": "nkw",
+        "comments": "https://news.ycombinator.com/item?id=49922674",
+        "content": "\n<p>Article URL: <a href=\"https://www.rtl-sdr.com/various-projects-independently-find-hidden-sdr-capabilities-in-esp32-microcontrollers/\">https://www.rtl-sdr.com/various-projects-independently-find-hidden-sdr-capabilities-in-esp32-microcontrollers/</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922674\">https://news.ycombinator.com/item?id=49922674</a></p>\n<p>Points: 89</p>\n<p># Comments: 10</p>\n",
+        "contentSnippet": "Article URL: https://www.rtl-sdr.com/various-projects-independently-find-hidden-sdr-capabilities-in-esp32-microcontrollers/\nComments URL: https://news.ycombinator.com/item?id=49922674\nPoints: 89\n# Comments: 10",
+        "guid": "https://news.ycombinator.com/item?id=49922674",
+        "isoDate": "2026-10-01T15:07:42.000Z"
+      },
+      {
+        "creator": "isaacimagine",
+        "title": "Polyedergarten: Garden of Paper Polyhedron Models",
+        "link": "https://www.polyedergarten.de/e_index.htm",
+        "pubDate": "Thu, 01 Oct 2026 15:02:51 +0000",
+        "dc:creator": "isaacimagine",
+        "comments": "https://news.ycombinator.com/item?id=49922594",
+        "content": "\n<p>Article URL: <a href=\"https://www.polyedergarten.de/e_index.htm\">https://www.polyedergarten.de/e_index.htm</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922594\">https://news.ycombinator.com/item?id=49922594</a></p>\n<p>Points: 36</p>\n<p># Comments: 5</p>\n",
+        "contentSnippet": "Article URL: https://www.polyedergarten.de/e_index.htm\nComments URL: https://news.ycombinator.com/item?id=49922594\nPoints: 36\n# Comments: 5",
+        "guid": "https://news.ycombinator.com/item?id=49922594",
+        "isoDate": "2026-10-01T15:02:51.000Z"
+      },
+      {
+        "creator": "whoishiring",
+        "title": "Ask HN: Who is hiring? (October 2026)",
+        "link": "https://news.ycombinator.com/item?id=49922569",
+        "pubDate": "Thu, 01 Oct 2026 15:02:07 +0000",
+        "dc:creator": "whoishiring",
+        "comments": "https://news.ycombinator.com/item?id=49922569",
+        "content": "\n<p>Please state the location and include REMOTE for remote work, REMOTE (US)\nor similar if the country is restricted, and ONSITE when remote work is <i>not</i> an option.<p>Please only post if you personally are part of the hiring company—no\nrecruiting firms or job boards. One post per company. If it isn't a household name,\nexplain what your company does.<p>Please only post if you are actively filling a position and are committed\nto replying to applicants.<p>Commenters: please don't reply to job posts to complain about\nsomething. It's off topic here.<p>Readers: please only email if you are personally interested in the job.<p>Searchers: try <a href=\"https://hnwork.app\" rel=\"nofollow\">https://hnwork.app</a>, <a href=\"https://nthesis.ai/public/hn-who-is-hiring\" rel=\"nofollow\">https://nthesis.ai/public/hn-who-is-hiring</a>, <a href=\"https://dheerajck.github.io/hnwhoishiring/\" rel=\"nofollow\">https://dheerajck.github.io/hnwhoishiring/</a>,\n<a href=\"http://nchelluri.github.io/hnjobs/\" rel=\"nofollow\">http://nchelluri.github.io/hnjobs/</a>, <a href=\"https://hnjobs.emilburzo.com\" rel=\"nofollow\">https://hnjobs.emilburzo.com</a>.<p>Don't miss this other fine thread: <i>Who wants to be hired?</i> <a href=\"https://news.ycombinator.com/item?id=49922568\">https://news.ycombinator.com/item?id=49922568</a></p>\n<hr>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922569\">https://news.ycombinator.com/item?id=49922569</a></p>\n<p>Points: 84</p>\n<p># Comments: 86</p>\n",
+        "contentSnippet": "Please state the location and include REMOTE for remote work, REMOTE (US)\nor similar if the country is restricted, and ONSITE when remote work is not an option.\nPlease only post if you personally are part of the hiring company—no\nrecruiting firms or job boards. One post per company. If it isn't a household name,\nexplain what your company does.\nPlease only post if you are actively filling a position and are committed\nto replying to applicants.\nCommenters: please don't reply to job posts to complain about\nsomething. It's off topic here.\nReaders: please only email if you are personally interested in the job.\nSearchers: try https://hnwork.app, https://nthesis.ai/public/hn-who-is-hiring, https://dheerajck.github.io/hnwhoishiring/,\nhttp://nchelluri.github.io/hnjobs/, https://hnjobs.emilburzo.com.\nDon't miss this other fine thread: Who wants to be hired? https://news.ycombinator.com/item?id=49922568\nComments URL: https://news.ycombinator.com/item?id=49922569\nPoints: 84\n# Comments: 86",
+        "guid": "https://news.ycombinator.com/item?id=49922569",
+        "isoDate": "2026-10-01T15:02:07.000Z"
+      },
+      {
+        "creator": "whoishiring",
+        "title": "Ask HN: Who wants to be hired? (October 2026)",
+        "link": "https://news.ycombinator.com/item?id=49922568",
+        "pubDate": "Thu, 01 Oct 2026 15:02:07 +0000",
+        "dc:creator": "whoishiring",
+        "comments": "https://news.ycombinator.com/item?id=49922568",
+        "content": "\n<p>Share your information if you are looking for work. Please use this format:<p><pre><code>  Location:\n  Remote:\n  Willing to relocate:\n  Technologies:\n  Résumé/CV:\n  Email:\n</code></pre>\nPlease only post if you are personally looking for work. Agencies, recruiters, job boards,\nand so on, are off topic here.<p>Readers: please only email these addresses to discuss work opportunities.<p>Searchers: try <a href=\"https://nthesis.ai/public/hn-wants-to-be-hired\" rel=\"nofollow\">https://nthesis.ai/public/hn-wants-to-be-hired</a>, <a href=\"https://www.wantstobehired.com\" rel=\"nofollow\">https://www.wantstobehired.com</a>.</p>\n<hr>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922568\">https://news.ycombinator.com/item?id=49922568</a></p>\n<p>Points: 50</p>\n<p># Comments: 177</p>\n",
+        "contentSnippet": "Share your information if you are looking for work. Please use this format:\n  Location:\n  Remote:\n  Willing to relocate:\n  Technologies:\n  Résumé/CV:\n  Email:\n\nReaders: please only email these addresses to discuss work opportunities.\nSearchers: try https://nthesis.ai/public/hn-wants-to-be-hired, https://www.wantstobehired.com.\nComments URL: https://news.ycombinator.com/item?id=49922568\nPoints: 50\n# Comments: 177",
+        "guid": "https://news.ycombinator.com/item?id=49922568",
+        "isoDate": "2026-10-01T15:02:07.000Z"
+      },
+      {
+        "creator": "spdegabrielle",
+        "title": "RacketCon Is Saturday",
+        "link": "https://con.racket-lang.org/",
+        "pubDate": "Thu, 01 Oct 2026 14:58:13 +0000",
+        "dc:creator": "spdegabrielle",
+        "comments": "https://news.ycombinator.com/item?id=49922515",
+        "content": "\n<p>Article URL: <a href=\"https://con.racket-lang.org/\">https://con.racket-lang.org/</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922515\">https://news.ycombinator.com/item?id=49922515</a></p>\n<p>Points: 96</p>\n<p># Comments: 25</p>\n",
+        "contentSnippet": "Article URL: https://con.racket-lang.org/\nComments URL: https://news.ycombinator.com/item?id=49922515\nPoints: 96\n# Comments: 25",
+        "guid": "https://news.ycombinator.com/item?id=49922515",
+        "isoDate": "2026-10-01T14:58:13.000Z"
+      },
+      {
+        "creator": "emersonmacro",
+        "title": "Context Language Models",
+        "link": "https://arxiv.org/abs/2609.37725",
+        "pubDate": "Thu, 01 Oct 2026 14:51:33 +0000",
+        "dc:creator": "emersonmacro",
+        "comments": "https://news.ycombinator.com/item?id=49922437",
+        "content": "\n<p>Article URL: <a href=\"https://arxiv.org/abs/2609.37725\">https://arxiv.org/abs/2609.37725</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922437\">https://news.ycombinator.com/item?id=49922437</a></p>\n<p>Points: 53</p>\n<p># Comments: 11</p>\n",
+        "contentSnippet": "Article URL: https://arxiv.org/abs/2609.37725\nComments URL: https://news.ycombinator.com/item?id=49922437\nPoints: 53\n# Comments: 11",
+        "guid": "https://news.ycombinator.com/item?id=49922437",
+        "isoDate": "2026-10-01T14:51:33.000Z"
+      },
+      {
+        "creator": "speckx",
+        "title": "Cops Can Bypass iPhone's Automatic Reboot to Get into Locked Phones",
+        "link": "https://www.404media.co/cops-can-bypass-iphone-automatic-inactivity-reboot-graykey/",
+        "pubDate": "Thu, 01 Oct 2026 14:38:35 +0000",
+        "dc:creator": "speckx",
+        "comments": "https://news.ycombinator.com/item?id=49922278",
+        "content": "\n<p>Article URL: <a href=\"https://www.404media.co/cops-can-bypass-iphone-automatic-inactivity-reboot-graykey/\">https://www.404media.co/cops-can-bypass-iphone-automatic-inactivity-reboot-graykey/</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922278\">https://news.ycombinator.com/item?id=49922278</a></p>\n<p>Points: 180</p>\n<p># Comments: 136</p>\n",
+        "contentSnippet": "Article URL: https://www.404media.co/cops-can-bypass-iphone-automatic-inactivity-reboot-graykey/\nComments URL: https://news.ycombinator.com/item?id=49922278\nPoints: 180\n# Comments: 136",
+        "guid": "https://news.ycombinator.com/item?id=49922278",
+        "isoDate": "2026-10-01T14:38:35.000Z"
+      },
+      {
+        "creator": "spy888",
+        "title": "How to set up SPF, DKIM, and DMARC for your sending domain",
+        "link": "https://mailfully.com/blog/spf-dkim-dmarc-setup",
+        "pubDate": "Thu, 01 Oct 2026 14:33:21 +0000",
+        "dc:creator": "spy888",
+        "comments": "https://news.ycombinator.com/item?id=49922212",
+        "content": "\n<p>Article URL: <a href=\"https://mailfully.com/blog/spf-dkim-dmarc-setup\">https://mailfully.com/blog/spf-dkim-dmarc-setup</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49922212\">https://news.ycombinator.com/item?id=49922212</a></p>\n<p>Points: 30</p>\n<p># Comments: 4</p>\n",
+        "contentSnippet": "Article URL: https://mailfully.com/blog/spf-dkim-dmarc-setup\nComments URL: https://news.ycombinator.com/item?id=49922212\nPoints: 30\n# Comments: 4",
+        "guid": "https://news.ycombinator.com/item?id=49922212",
+        "isoDate": "2026-10-01T14:33:21.000Z"
+      },
+      {
+        "creator": "elffjs",
+        "title": "Cloudflare K2: serverless event streams",
+        "link": "https://blog.cloudflare.com/cloudflare-k2-streams/",
+        "pubDate": "Thu, 01 Oct 2026 14:09:10 +0000",
+        "dc:creator": "elffjs",
+        "comments": "https://news.ycombinator.com/item?id=49921923",
+        "content": "\n<p>Article URL: <a href=\"https://blog.cloudflare.com/cloudflare-k2-streams/\">https://blog.cloudflare.com/cloudflare-k2-streams/</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49921923\">https://news.ycombinator.com/item?id=49921923</a></p>\n<p>Points: 122</p>\n<p># Comments: 40</p>\n",
+        "contentSnippet": "Article URL: https://blog.cloudflare.com/cloudflare-k2-streams/\nComments URL: https://news.ycombinator.com/item?id=49921923\nPoints: 122\n# Comments: 40",
+        "guid": "https://news.ycombinator.com/item?id=49921923",
+        "isoDate": "2026-10-01T14:09:10.000Z"
+      },
+      {
+        "creator": "dgellow",
+        "title": "FTC is investigating OpenAI, Anthropic and other AI companies over product risks",
+        "link": "https://www.cnbc.com/2026/09/30/ftc-ai-probe-openai-anthropic.html",
+        "pubDate": "Thu, 01 Oct 2026 13:00:55 +0000",
+        "dc:creator": "dgellow",
+        "comments": "https://news.ycombinator.com/item?id=49921050",
+        "content": "\n<p>Article URL: <a href=\"https://www.cnbc.com/2026/09/30/ftc-ai-probe-openai-anthropic.html\">https://www.cnbc.com/2026/09/30/ftc-ai-probe-openai-anthropic.html</a></p>\n<p>Comments URL: <a href=\"https://news.ycombinator.com/item?id=49921050\">https://news.ycombinator.com/item?id=49921050</a></p>\n<p>Points: 181</p>\n<p># Comments: 121</p>\n",
+        "contentSnippet": "Article URL: https://www.cnbc.com/2026/09/30/ftc-ai-probe-openai-anthropic.html\nComments URL: https://news.ycombinator.com/item?id=49921050\nPoints: 181\n# Comments: 121",
+        "guid": "https://news.ycombinator.com/item?id=49921050",
+        "isoDate": "2026-10-01T13:00:55.000Z"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "434f97a4d58b932e756c947bd51d2939c9755725df045c45a75f73a3885472c0"
+  }
+}
