@@ -1,0 +1,134 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Zgłoszenie do IT",
+        "formDescription": "Opisz problem, a my się nim zajmiemy.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Imię:",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "E-mail:",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Opis problemu:",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "56cd0e09-2141-4537-84f8-32fe1a2ebcf7",
+      "name": "On form submission",
+      "webhookId": "2e1e553e-e806-4606-9727-07ae9ae23444"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Jesteś asystentem działu IT. Klasyfikujesz zgłoszenia pracowników.\n\nKategorie:\n- \"dostęp\": hasła, konta, VPN, uprawnienia\n- \"sprzęt\": komputer, monitor, drukarka, telefon\n- \"oprogramowanie\": aplikacje, błędy programów, instalacja\n- \"inne\": wszystko, co nie pasuje wyżej\n\nPilność:\n1 = może poczekać kilka dni\n2 = trzeba załatwić dziś\n3 = blokuje pracę albo kontakt z klientem teraz\n\nJeśli nie masz pewności co do kategorii, wybierz \"inne\" i ustaw pewnosc poniżej 60.\n\nOdpowiedz wyłącznie w JSON, bez żadnego innego tekstu:\n{\"kategoria\": \"...\", \"pilnosc\": 1, \"streszczenie\": \"jedno zdanie po polsku\", \"pewnosc\": 0-100}"
+            },
+            {
+              "content": "={{ $json[\"Opis problemu:\"] }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        0
+      ],
+      "id": "c96c1233-d5ed-4f7f-b45c-3171ccbf6fae",
+      "name": "AI: klasyfikuj",
+      "credentials": {
+        "openAiApi": {
+          "id": "xTp2k1cQEb00yOiX",
+          "name": "OpenAI nauka"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Dane z formularza i odpowiedź AI\nconst zgloszenie = $('On form submission').item.json;\nlet ai = $json.output?.[0]?.content?.[0]?.text;\n\n// Gdyby AI zwróciło tekst zamiast danych, próbujemy go odczytać\nif (typeof ai === 'string') {\n  try { ai = JSON.parse(ai); } catch (e) { ai = null; }\n}\n\nconst kategorie = ['dostęp', 'sprzęt', 'oprogramowanie', 'inne'];\nconst problemy = [];\n\nif (!ai || typeof ai !== 'object') {\n  problemy.push('AI nie zwróciło poprawnego JSON-a');\n} else {\n  if (!kategorie.includes(ai.kategoria)) problemy.push('nieznana kategoria: ' + ai.kategoria);\n  if (![1, 2, 3].includes(ai.pilnosc)) problemy.push('zła pilność: ' + ai.pilnosc);\n  if (!ai.streszczenie) problemy.push('brak streszczenia');\n  if (typeof ai.pewnosc !== 'number') problemy.push('brak pewności');\n  else if (ai.pewnosc < 60) problemy.push('niska pewność: ' + ai.pewnosc);\n}\n\nreturn {\n  json: {\n    imie: zgloszenie['Imię:'],\n    email: zgloszenie['E-mail:'],\n    opis: zgloszenie['Opis problemu:'],\n    kategoria: ai?.kategoria ?? 'inne',\n    pilnosc: ai?.pilnosc ?? 2,\n    streszczenie: ai?.streszczenie ?? '',\n    pewnosc: ai?.pewnosc ?? 0,\n    doSprawdzenia: problemy.length > 0,\n    problemy: problemy.join('; '),\n    data: zgloszenie.submittedAt\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        0
+      ],
+      "id": "8353dbeb-120a-4f05-a120-a0ac915b9a1e",
+      "name": "Sprawdź odpowiedź AI"
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "AI: klasyfikuj",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: klasyfikuj": {
+      "main": [
+        [
+          {
+            "node": "Sprawdź odpowiedź AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "On form submission": [
+      {
+        "Imię:": "Anna",
+        "E-mail:": "anna@gmail.com",
+        "Opis problemu:": "Strona nie wyświetla się klientom. Widać tylko banner.",
+        "submittedAt": "2026-10-07T20:51:49.319+02:00",
+        "formMode": "test"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "434f97a4d58b932e756c947bd51d2939c9755725df045c45a75f73a3885472c0"
+  }
+}
