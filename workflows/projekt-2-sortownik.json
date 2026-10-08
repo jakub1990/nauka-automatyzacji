@@ -85,11 +85,242 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        592,
+        576,
         0
       ],
       "id": "8353dbeb-120a-4f05-a120-a0ac915b9a1e",
       "name": "Sprawdź odpowiedź AI"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "58386495-926e-4161-a21e-5ad7754e031e",
+              "leftValue": "={{ $json.doSprawdzenia }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        0
+      ],
+      "id": "13ecea37-8a72-4a3b-a123-5f672ee015d4",
+      "name": "Do sprawdzenia?"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1oEAlf9940HT_jcI4Fn8u4UffavX6bgMRihucm0K1-E4",
+          "mode": "list",
+          "cachedResultName": "Zgłoszenia IT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oEAlf9940HT_jcI4Fn8u4UffavX6bgMRihucm0K1-E4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Arkusz1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oEAlf9940HT_jcI4Fn8u4UffavX6bgMRihucm0K1-E4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "data": "={{ $json.data }}",
+            "imie": "={{ $json.imie }}",
+            "email": "={{ $json.email }}",
+            "kategoria": "={{ $json.kategoria }}",
+            "pilnosc": "={{ $json.pilnosc }}",
+            "streszczenie": "={{ $json.streszczenie }}",
+            "pewnosc": "={{ $json.pewnosc }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "imie",
+              "displayName": "imie",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "kategoria",
+              "displayName": "kategoria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pilnosc",
+              "displayName": "pilnosc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "streszczenie",
+              "displayName": "streszczenie",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pewnosc",
+              "displayName": "pewnosc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "c68daaa4-ea55-4f5b-82c0-6eaf1fb35bfb",
+      "name": "Zapisz w arkuszu",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PHxatFgIbcsIQDxp",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c0cd9e09-b159-4be2-a001-cd23e616103a",
+              "leftValue": "={{ $('Sprawdź odpowiedź AI').item.json.pilnosc }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        96
+      ],
+      "id": "bd11e869-b363-45fb-ae6f-54939f9f6390",
+      "name": "Pilne?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "ADRES_DISCORD",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=🚨 Pilne zgłoszenie [{{ $('Sprawdź odpowiedź AI').item.json.kategoria }}] {{ $('Sprawdź odpowiedź AI').item.json.streszczenie }} Od: {{ $('Sprawdź odpowiedź AI').item.json.imie }} ({{ $('Sprawdź odpowiedź AI').item.json.email }})"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1472,
+        96
+      ],
+      "id": "8911c921-ac29-4913-a4b2-b9105929cf69",
+      "name": "Discord: pilne"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "ADRES_DISCORD",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=🔎 Zgłoszenie do sprawdzenia przez człowieka\n  Od: {{ $json.imie }} ({{ $json.email }})\n  Opis: {{ $json.opis }}\n  Powód: {{ $json.problemy }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "ec9fd803-b650-4ecf-871e-d101a0175858",
+      "name": "Discord: do sprawdzenia"
     }
   ],
   "connections": {
@@ -114,19 +345,60 @@
           }
         ]
       ]
+    },
+    "Sprawdź odpowiedź AI": {
+      "main": [
+        [
+          {
+            "node": "Do sprawdzenia?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Do sprawdzenia?": {
+      "main": [
+        [
+          {
+            "node": "Discord: do sprawdzenia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Zapisz w arkuszu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zapisz w arkuszu": {
+      "main": [
+        [
+          {
+            "node": "Pilne?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pilne?": {
+      "main": [
+        [
+          {
+            "node": "Discord: pilne",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "pinData": {
-    "On form submission": [
-      {
-        "Imię:": "Anna",
-        "E-mail:": "anna@gmail.com",
-        "Opis problemu:": "Strona nie wyświetla się klientom. Widać tylko banner.",
-        "submittedAt": "2026-10-07T20:51:49.319+02:00",
-        "formMode": "test"
-      }
-    ]
-  },
+  "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "434f97a4d58b932e756c947bd51d2939c9755725df045c45a75f73a3885472c0"
