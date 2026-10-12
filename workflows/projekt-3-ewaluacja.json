@@ -1,0 +1,123 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "22ecdd72-d84e-4080-b31a-9b56c7658b92",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 20 zgłoszeń testowych z poprawnymi odpowiedziami (\"klucz odpowiedzi\")\nconst testy = [\n  ['Zapomniałem hasła do poczty i nie mogę się zalogować.', ['dostęp'], 2],\n  ['Nie mogę połączyć się z VPN, a za 15 minut mam rozmowę z klientem.', ['dostęp'], 3],\n  ['Proszę o dostęp do folderu z raportami działu finansów.', ['dostęp'], 1],\n  ['Moje konto zablokowało się po trzech próbach logowania, nie mogę pracować.', ['dostęp'], 3],\n  ['Monitor czasem miga, ale da się pracować.', ['sprzęt'], 1],\n  ['Laptop nie włącza się od rana, nie mam na czym pracować.', ['sprzęt'], 3],\n  ['Drukarka na drugim piętrze zacina papier.', ['sprzęt'], 1],\n  ['Słuchawki do rozmów z klientami przestały działać, mam dziś dyżur na infolinii.', ['sprzęt'], 3],\n  ['Potrzebuję drugiej ładowarki do laptopa do domu.', ['sprzęt'], 1],\n  ['Excel zawiesza się przy otwieraniu dużych plików.', ['oprogramowanie'], 2],\n  ['Po aktualizacji nie działa wtyczka kalendarza w Outlooku.', ['oprogramowanie'], 2],\n  ['Proszę o instalację programu do edycji PDF.', ['oprogramowanie'], 1],\n  ['Aplikacja do obsługi klientów wyrzuca błąd przy zapisie, cały zespół stoi.', ['oprogramowanie'], 3],\n  ['Teams nie pokazuje mi powiadomień o nowych wiadomościach.', ['oprogramowanie'], 2],\n  ['Gdzie mogę zamówić nowe krzesło biurowe?', ['inne'], 1],\n  ['Klimatyzacja w sali konferencyjnej nie działa.', ['inne'], 1],\n  ['Kiedy będzie szkolenie z bezpieczeństwa IT?', ['inne'], 1],\n  ['Nie działa.', ['inne'], 2],\n  ['Od rana komputer działa bardzo wolno i programy się zawieszają.', ['sprzęt', 'oprogramowanie'], 2],\n  ['Ktoś dzwonił, podając się za IT, i prosił o moje hasło.', ['dostęp', 'inne'], 3]\n];\n\nreturn testy.map(([opis, kategorie, pilnosc], n) => ({\n  json: { nr: n + 1, opis, kategorie, pilnosc }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "9be574a5-b674-4f32-8d13-8716ab55c1d4",
+      "name": "Zestaw testowy"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Jesteś asystentem działu IT. Klasyfikujesz zgłoszenia pracowników.\n\nKategorie:\n- \"dostęp\": hasła, konta, VPN, uprawnienia\n- \"sprzęt\": komputer, monitor, drukarka, telefon\n- \"oprogramowanie\": aplikacje, błędy programów, instalacja\n- \"inne\": wszystko, co nie pasuje wyżej\n\nPilność:\n1 = może poczekać kilka dni\n2 = trzeba załatwić dziś\n3 = blokuje pracę albo kontakt z klientem teraz\n\nJeśli nie masz pewności co do kategorii, wybierz \"inne\" i ustaw pewnosc poniżej 60.\n\nOdpowiedz wyłącznie w JSON, bez żadnego innego tekstu:\n{\"kategoria\": \"...\", \"pilnosc\": 1, \"streszczenie\": \"jedno zdanie po polsku\", \"pewnosc\": 0-100}"
+            },
+            {
+              "content": "={{ $json.opis }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "7365e885-7749-4f11-9d08-3a6bfd9b4e64",
+      "name": "AI: klasyfikuj",
+      "credentials": {
+        "openAiApi": {
+          "id": "YG6De17SNxywzDbe",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pary: zgłoszenie testowe i odpowiedź AI, w tej samej kolejności\nconst testy = $('Zestaw testowy').all().map(i => i.json);\nconst odpowiedzi = $input.all().map(i => {\n  let ai = i.json.output?.[0]?.content?.[0]?.text;\n  if (typeof ai === 'string') { try { ai = JSON.parse(ai); } catch (e) { ai = null; } }\n  return ai || {};\n});\n\nlet kategorieOk = 0, pilnoscOk = 0;\nconst pomylki = [];\n\ntesty.forEach((t, n) => {\n  const ai = odpowiedzi[n];\n  const katOk = t.kategorie.includes(ai.kategoria);\n  const pilOk = ai.pilnosc === t.pilnosc;\n  if (katOk) kategorieOk++;\n  if (pilOk) pilnoscOk++;\n  if (!katOk || !pilOk) {\n    pomylki.push(`#${t.nr} \"${t.opis}\" | AI: ${ai.kategoria}, ${ai.pilnosc} (pewność ${ai.pewnosc}) | oczekiwane: ${t.kategorie.join(' lub ')}, ${t.pilnosc}`);\n  }\n});\n\nreturn [{ json: {\n  kategorie: `${kategorieOk}/${testy.length}`,\n  pilnosc: `${pilnoscOk}/${testy.length}`,\n  zaliczone: kategorieOk >= 17,\n  pomylki\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "id": "a11c3e5a-0e0a-4b68-aa04-f3bf3a5b6712",
+      "name": "Policz wynik"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Zestaw testowy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zestaw testowy": {
+      "main": [
+        [
+          {
+            "node": "AI: klasyfikuj",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: klasyfikuj": {
+      "main": [
+        [
+          {
+            "node": "Policz wynik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "09750650c302e625ac87e12ecdcf6d7cd0d41f6d2d715b93f9c921d5e2900583"
+  }
+}
