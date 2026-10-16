@@ -1,0 +1,177 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        112
+      ],
+      "id": "07d47167-4949-4b01-96f5-266730c879b9",
+      "name": "When chat message received",
+      "webhookId": "9cabf1a2-ff3b-49cf-91a8-49b6194e652e"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemPromptTemplate": "Jesteś asystentem, który odpowiada na pytania o RODO wyłącznie na podstawie fragmentów podanych poniżej.\n\nZasady:\n- Odpowiadaj tylko tym, co jest we fragmentach. Nie dopowiadaj niczego z własnej wiedzy.\n- Opieraj odpowiedź na artykułach rozporządzenia. Motywy możesz podać tylko jako dodatkowe wyjaśnienie.\n- Na końcu podaj źródło: numer artykułu, a jeśli to możliwe, także ustęp.\n- Jeśli fragmenty nie zawierają odpowiedzi, odpowiedz: \"Nie znalazłem tego w RODO.\"\n- Nie udzielaj porad prawnych. Opisuj tylko, co mówi rozporządzenie.\n- Odpowiadaj po polsku, krótko i konkretnie.\n\nFragmenty:\n{context}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainRetrievalQa",
+      "typeVersion": 1.7,
+      "position": [
+        256,
+        0
+      ],
+      "id": "bee8fd4f-9b87-439c-9719-8d137600ad7b",
+      "name": "Question and Answer Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        240
+      ],
+      "id": "9c2861a7-5e30-4979-bd6f-2653b78cda9e",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YG6De17SNxywzDbe",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topK": 8
+      },
+      "type": "@n8n/n8n-nodes-langchain.retrieverVectorStore",
+      "typeVersion": 1,
+      "position": [
+        368,
+        240
+      ],
+      "id": "efd90094-c17d-43a9-a6c4-c80b0b28e67d",
+      "name": "Vector Store Retriever"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        656
+      ],
+      "id": "5a824e93-4bc5-4dec-ac79-7473fa015f80",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "YG6De17SNxywzDbe",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "rodo",
+          "mode": "list",
+          "cachedResultName": "rodo"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        448
+      ],
+      "id": "faf19d84-360f-4642-bd16-7cf251606018",
+      "name": "Qdrant Vector Store",
+      "credentials": {
+        "qdrantApi": {
+          "id": "fqVEXMc7ddhImkf8",
+          "name": "Qdrant nauka"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Question and Answer Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Question and Answer Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store Retriever": {
+      "ai_retriever": [
+        [
+          {
+            "node": "Question and Answer Chain",
+            "type": "ai_retriever",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Vector Store Retriever",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09750650c302e625ac87e12ecdcf6d7cd0d41f6d2d715b93f9c921d5e2900583"
+  }
+}
